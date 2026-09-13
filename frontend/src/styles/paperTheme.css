@@ -1,0 +1,495 @@
+/* ============================================================
+   CAMPUSRESOLVE — GLOBAL PAPER THEME
+   Desk textures, paper sheets, typewriter headings, rubber
+   stamps, ledger tables, underline form fields.
+   Imported LAST in main.tsx so it wins over other styles.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  --paper: #fffdf4;
+  --paper-edge: #e5dcc3;
+  --paper-ink: #1e293b;
+  --paper-rule: rgba(37, 99, 235, 0.10);
+  --desk: #e9e2d3;
+  --kraft: #d8cfae;
+}
+
+.dark {
+  --paper: #1c2333;
+  --paper-edge: rgba(255, 255, 255, 0.12);
+  --paper-ink: #f1f5f9;
+  --paper-rule: rgba(148, 163, 184, 0.12);
+  --desk: #141a26;
+  --kraft: rgba(148, 163, 184, 0.4);
+}
+
+/* ── Desk background everywhere ─────────────────────────── */
+html {
+  background-color: var(--desk);
+}
+
+.paper-desk {
+  background-color: var(--desk);
+  background-image:
+    radial-gradient(rgba(120, 100, 70, 0.10) 1px, transparent 1px),
+    linear-gradient(rgba(120, 100, 70, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120, 100, 70, 0.05) 1px, transparent 1px);
+  background-size: 22px 22px, 28px 28px, 28px 28px;
+}
+
+.dark .paper-desk {
+  background-color: var(--desk);
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+body,
+#root,
+.app-shell {
+  background-color: var(--desk) !important;
+  background-image:
+    radial-gradient(rgba(120, 100, 70, 0.10) 1px, transparent 1px),
+    linear-gradient(rgba(120, 100, 70, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120, 100, 70, 0.05) 1px, transparent 1px) !important;
+  background-size: 22px 22px, 28px 28px, 28px 28px !important;
+}
+
+.dark body,
+.dark #root,
+.dark .app-shell {
+  background-color: var(--desk) !important;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px) !important;
+}
+
+/* ── Typewriter headings ────────────────────────────────── */
+h1, h2, h3,
+.hero-title,
+.login-card-title {
+  font-family: 'Courier Prime', 'Courier New', monospace !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* ── Paper cards (legacy global card classes) ───────────── */
+.card-level-1, .card-surface, .card,
+.card-level-2, .card-workspace, .solid-card {
+  background-color: var(--paper) !important;
+  border: 1px solid var(--paper-edge) !important;
+  border-radius: 8px !important;
+  box-shadow:
+    0 1px 2px rgba(60, 50, 30, 0.16),
+    0 10px 28px rgba(60, 50, 30, 0.16) !important;
+}
+
+.dark .card-level-1, .dark .card-surface, .dark .card,
+.dark .card-level-2, .dark .card-workspace, .dark .solid-card {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 14px 34px rgba(0, 0, 0, 0.5) !important;
+}
+
+.card:hover, .card-level-1:hover,
+.card-level-2:hover, .solid-card:hover {
+  transform: translateY(-2px) rotate(-0.2deg) !important;
+}
+
+/* ── Rubber-stamp status badges ─────────────────────────── */
+.badge {
+  font-family: 'Courier Prime', monospace !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  border-radius: 5px !important;
+  border-width: 1.5px !important;
+  border-style: solid !important;
+  transform: rotate(-0.6deg) !important;
+  background: transparent !important;
+}
+
+.badge-submitted, .badge-pending {
+  color: #b45309 !important;
+  border-color: rgba(180, 83, 9, 0.55) !important;
+}
+.badge-assigned {
+  color: #1d4ed8 !important;
+  border-color: rgba(29, 78, 216, 0.55) !important;
+}
+.badge-progress, .badge-in-progress {
+  color: #6d28d9 !important;
+  border-color: rgba(109, 40, 217, 0.55) !important;
+}
+.badge-resolved {
+  color: #047857 !important;
+  border-color: rgba(4, 120, 87, 0.55) !important;
+}
+.badge-closed {
+  color: var(--text-muted) !important;
+  border-color: var(--border-strong) !important;
+}
+.badge-urgent {
+  color: #b91c1c !important;
+  border-color: rgba(185, 28, 28, 0.6) !important;
+}
+
+.dark .badge-submitted, .dark .badge-pending { color: #fcd34d !important; }
+.dark .badge-assigned { color: #93c5fd !important; }
+.dark .badge-progress, .dark .badge-in-progress { color: #c4b5fd !important; }
+.dark .badge-resolved { color: #6ee7b7 !important; }
+.dark .badge-urgent { color: #fca5a5 !important; }
+
+/* ── Ledger tables ──────────────────────────────────────── */
+.table-container {
+  background: var(--paper) !important;
+  border: 1px solid var(--paper-edge) !important;
+  border-radius: 8px !important;
+  box-shadow:
+    0 1px 2px rgba(60, 50, 30, 0.16),
+    0 10px 28px rgba(60, 50, 30, 0.16) !important;
+}
+
+.premium-table th {
+  font-family: 'Courier Prime', monospace !important;
+  background: rgba(120, 100, 70, 0.10) !important;
+  border-bottom: 2px solid var(--kraft) !important;
+}
+
+.dark .premium-table th {
+  background: rgba(148, 163, 184, 0.10) !important;
+}
+
+.premium-table td {
+  border-bottom: 1px solid var(--paper-edge) !important;
+}
+
+/* ── Paper form fields (raw inputs across all pages) ────── */
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='search'],
+input[type='number'],
+input[type='tel'],
+input[type='url'],
+input:not([type]) {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid var(--kraft) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-family: 'Courier Prime', monospace !important;
+  font-weight: 700 !important;
+}
+
+input[type='text']:focus,
+input[type='email']:focus,
+input[type='password']:focus,
+input[type='search']:focus,
+input[type='number']:focus,
+input[type='tel']:focus,
+input[type='url']:focus,
+input:not([type]):focus {
+  border-bottom-color: var(--accent) !important;
+  box-shadow: 0 1px 0 var(--accent) !important;
+}
+
+textarea {
+  background-color: var(--paper) !important;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 27px,
+    var(--paper-rule) 27px,
+    var(--paper-rule) 28px
+  ) !important;
+  border: 1px solid var(--paper-edge) !important;
+  border-radius: 6px !important;
+  font-family: 'Courier Prime', monospace !important;
+  line-height: 28px !important;
+  box-shadow: none !important;
+}
+
+select {
+  background-color: var(--paper) !important;
+  border: 1.5px dashed var(--kraft) !important;
+  border-radius: 8px !important;
+  font-family: 'Courier Prime', monospace !important;
+  font-weight: 700 !important;
+}
+
+/* ── Highlighter selection + kraft scrollbar ────────────── */
+::selection {
+  background: rgba(253, 224, 71, 0.65) !important;
+  color: #1c1917 !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b8ab84 !important;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569 !important;
+}
+
+/* ── Shared paper utilities (usable in any page) ────────── */
+.paper-font-type { font-family: 'Courier Prime', 'Courier New', monospace !important; }
+.paper-font-hand { font-family: 'Caveat', cursive !important; }
+
+.paper-card {
+  background-color: var(--paper) !important;
+  border: 1px solid var(--paper-edge) !important;
+  border-radius: 8px !important;
+  box-shadow:
+    0 1px 2px rgba(60, 50, 30, 0.16),
+    0 10px 28px rgba(60, 50, 30, 0.16) !important;
+}
+
+.paper-stamp-inline {
+  font-family: 'Courier Prime', monospace !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.14em !important;
+  border: 2px solid currentColor !important;
+  border-radius: 5px !important;
+  padding: 3px 9px !important;
+  transform: rotate(-2deg) !important;
+  display: inline-block !important;
+}
+
+/* ── Paper theme toggle (matches CR logo + paper buttons) ─── */
+.paper-toggle-btn {
+  position: relative !important;
+  width: 36px !important;
+  height: 36px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  cursor: pointer !important;
+  background-color: var(--paper) !important;
+  color: #1e293b !important;
+  border: 1px solid #0f172a !important;
+  border-radius: 7px !important;
+  box-shadow: 0 2px 0 #0f172a !important;
+  transform: rotate(-3deg) !important;
+  transition: transform 160ms ease, box-shadow 160ms ease,
+    background-color 160ms ease, color 160ms ease !important;
+  outline: none !important;
+  padding: 0 !important;
+}
+
+/* Folded paper corner */
+.paper-toggle-btn::after {
+  content: '' !important;
+  position: absolute !important;
+  right: -1px !important;
+  bottom: -1px !important;
+  width: 9px !important;
+  height: 9px !important;
+  background: linear-gradient(135deg, var(--kraft) 0 50%, rgba(0,0,0,0.18) 50% 100%) !important;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%) !important;
+  border-bottom-right-radius: 6px !important;
+  pointer-events: none !important;
+}
+
+.paper-toggle-btn:hover {
+  transform: rotate(0deg) translateY(-1px) !important;
+  box-shadow: 0 3px 0 #0f172a !important;
+  background-color: #fffef9 !important;
+}
+
+.paper-toggle-btn:active {
+  transform: rotate(0deg) translateY(2px) !important;
+  box-shadow: 0 0 0 #0f172a !important;
+}
+
+.paper-toggle-btn:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+
+.paper-toggle-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  border: 1.5px dashed rgba(30, 41, 59, 0.4) !important;
+  border-radius: 9999px !important;
+  animation: paper-toggle-pop 220ms ease-out !important;
+}
+
+.dark .paper-toggle-btn {
+  background-color: var(--paper) !important;
+  color: #fcd34d !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 2px 0 #64748b !important;
+}
+
+.dark .paper-toggle-btn:hover {
+  background-color: #232c40 !important;
+  box-shadow: 0 3px 0 #64748b !important;
+}
+
+.dark .paper-toggle-btn:active {
+  box-shadow: 0 0 0 #64748b !important;
+}
+
+.dark .paper-toggle-btn::after {
+  background: linear-gradient(135deg, rgba(148,163,184,0.7) 0 50%, rgba(0,0,0,0.45) 50% 100%) !important;
+}
+
+.dark .paper-toggle-icon {
+  border-color: rgba(252, 211, 77, 0.55) !important;
+}
+
+@keyframes paper-toggle-pop {
+  from { opacity: 0; transform: scale(0.7) rotate(-18deg); }
+  to { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card:hover, .card-level-1:hover,
+  .card-level-2:hover, .solid-card:hover {
+    transform: none !important;
+  }
+  .paper-toggle-btn,
+  .paper-toggle-btn:hover,
+  .paper-toggle-btn:active {
+    transform: rotate(-3deg) !important;
+  }
+  .paper-toggle-icon { animation: none !important; }
+}
+
+/* ============================================================
+   FULL-PROJECT PAPER NORMALIZATION
+   Forces every legacy glass / gradient-wash / oversized-radius
+   panel across ALL routes into the paper system. Runs last so
+   it wins over component-level Tailwind classes.
+   ============================================================ */
+
+/* ── 1. Oversized radii → paper 8px (pills/avata­rs stay round) ── */
+[class*="rounded-2xl"],
+[class*="rounded-3xl"],
+[class*="rounded-[14px]"],
+[class*="rounded-[20"],
+[class*="rounded-[22"],
+[class*="rounded-[24"],
+[class*="rounded-[26"],
+[class*="rounded-[28"],
+[class*="rounded-[30"],
+[class*="rounded-[32"] {
+  border-radius: 8px !important;
+}
+
+/* ── 2. Kill frosted-glass blur everywhere ───────────────────── */
+[class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── 3. Glass tints → solid paper ───────────────────────────── */
+[class*="bg-white/80"],
+[class*="bg-white/85"],
+[class*="bg-[#0E1520]/80"],
+[class*="bg-[#0E1520]/85"],
+[class*="dark:bg-[#0E1520]/80"],
+[class*="dark:bg-[#0E1520]/85"],
+[class*="bg-slate-900/80"] {
+  background-color: var(--paper) !important;
+}
+
+/* Solid legacy panels → paper sheet */
+div[class*="bg-white"]:not([class*="rounded-full"]):not([class*="text-"]),
+section[class*="bg-white"]:not([class*="rounded-full"]),
+div[class*="bg-[var(--card)]"],
+section[class*="bg-[var(--card)]"],
+div[class*="dark:bg-[#101722]"],
+section[class*="dark:bg-[#101722]"],
+div[class*="dark:bg-[#0E1520]"],
+section[class*="dark:bg-[#0E1520]"],
+div[class*="dark:bg-slate-900"]:not([class*="rounded-full"]),
+div[class*="bg-slate-50"]:not([class*="rounded-full"]),
+div[class*="bg-[#F8FAFC]"] {
+  background-color: var(--paper) !important;
+  border-color: var(--paper-edge) !important;
+}
+
+/* ── 4. Gradient washes → paper (progress bars + avatars kept) ── */
+[class*="bg-gradient-to-br"]:not([class*="rounded-full"]),
+div[class*="from-blue-50/"],
+div[class*="from-indigo-50/"],
+section[class*="from-blue-50/"],
+section[class*="from-indigo-50/"] {
+  background-image: none !important;
+  background-color: var(--paper) !important;
+}
+
+/* Gradient ink buttons → paper ink stamp */
+[class*="from-blue-600"][class*="to-indigo-600"]:not([class*="rounded-full"]) {
+  background-image: none !important;
+  background-color: #1e293b !important;
+  color: #fffdf4 !important;
+  border: 1px solid #0f172a !important;
+  box-shadow: 0 3px 0 #0f172a !important;
+}
+
+/* ── 5. Oversized float shadows → paper desk shadows ─────────── */
+[class*="shadow-2xl"]:not([class*="rounded-full"]) {
+  box-shadow:
+    0 1px 2px rgba(60, 50, 30, 0.16),
+    0 10px 28px rgba(60, 50, 30, 0.16) !important;
+}
+.dark [class*="shadow-2xl"]:not([class*="rounded-full"]) {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 14px 34px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ── 6. Space / galaxy canvas has no place on the desk ───────── */
+canvas[class*="fixed"] {
+  display: none !important;
+}
+
+/* ── 7. Paper modal backdrops (dim, never blurred) ───────────── */
+div[class*="bg-black/60"][class*="fixed"],
+div[class*="bg-slate-900/60"][class*="fixed"],
+div[class*="bg-slate-900/40"][class*="fixed"],
+div[class*="bg-black/40"][class*="fixed"] {
+  background-color: rgba(30, 25, 15, 0.5) !important;
+}
+.dark div[class*="bg-black/60"][class*="fixed"],
+.dark div[class*="bg-slate-900/60"][class*="fixed"],
+.dark div[class*="bg-slate-900/40"][class*="fixed"],
+.dark div[class*="bg-black/40"][class*="fixed"] {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* ── 8. Paper icon chips: any small tinted rounded icon box ──── */
+/* (component edits add dashed borders; this just un-rounds them) */
+div[class*="bg-blue-500/10"][class*="rounded-2xl"],
+div[class*="bg-emerald-500/10"][class*="rounded-2xl"],
+div[class*="bg-amber-500/10"][class*="rounded-2xl"],
+div[class*="bg-rose-500/10"][class*="rounded-2xl"],
+div[class*="bg-cyan-500/10"][class*="rounded-2xl"],
+div[class*="bg-purple-500/10"][class*="rounded-2xl"],
+div[class*="bg-indigo-500/10"][class*="rounded-2xl"] {
+  border-style: dashed !important;
+  border-width: 1.5px !important;
+}
+
+/* ── 9. Ledger rules for large dashboard grids ───────────────── */
+.lg\:col-span-6[class*="rounded"],
+.lg\:col-span-5[class*="rounded"],
+.lg\:col-span-4[class*="rounded"],
+.lg\:col-span-3[class*="rounded"] {
+  border: 1px solid var(--paper-edge) !important;
+}
+
+/* ── 10. Timeline + activity rails → kraft ───────────────────── */
+[class*="before:from-indigo-500/20"]::before {
+  background-image: none !important;
+  background-color: var(--kraft) !important;
+}

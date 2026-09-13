@@ -1,0 +1,300 @@
+/* ============================================================
+   CAMPUSRESOLVE — LOGIN PAPER STYLE
+   Desk + pinned paper sheets, ruled lines, tape, holes, stamps
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ── Desk background ── */
+.paper-desk {
+  background-color: #e9e2d3;
+  background-image:
+    radial-gradient(rgba(120, 100, 70, 0.10) 1px, transparent 1px),
+    linear-gradient(rgba(120, 100, 70, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120, 100, 70, 0.05) 1px, transparent 1px);
+  background-size: 22px 22px, 28px 28px, 28px 28px;
+}
+
+.dark .paper-desk {
+  background-color: #141a26;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 22px 22px, 28px 28px, 28px 28px;
+}
+
+/* ── Paper sheet ── */
+.paper-sheet {
+  position: relative;
+  background-color: #fffdf4;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 31px,
+    rgba(37, 99, 235, 0.10) 31px,
+    rgba(37, 99, 235, 0.10) 32px
+  );
+  border: 1px solid #e5dcc3;
+  border-radius: 4px;
+  box-shadow:
+    0 1px 2px rgba(60, 50, 30, 0.18),
+    0 12px 32px rgba(60, 50, 30, 0.22);
+}
+
+.dark .paper-sheet {
+  background-color: #1c2333;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 31px,
+    rgba(148, 163, 184, 0.12) 31px,
+    rgba(148, 163, 184, 0.12) 32px
+  );
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 16px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* Stacked sheets behind */
+.paper-stack::before,
+.paper-stack::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  border: 1px solid inherit;
+  border-radius: 4px;
+  z-index: -1;
+}
+.paper-stack::before {
+  transform: rotate(-1.6deg) translateY(4px);
+  opacity: 0.7;
+  background-color: #fbf6e7;
+}
+.paper-stack::after {
+  transform: rotate(1.2deg) translateY(7px);
+  opacity: 0.5;
+  background-color: #f5eedd;
+}
+.dark .paper-stack::before { background-color: #171e2d; }
+.dark .paper-stack::after { background-color: #131927; }
+
+/* Red margin line */
+.paper-margin {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 44px;
+  width: 1px;
+  background: rgba(239, 68, 68, 0.45);
+  pointer-events: none;
+}
+@media (max-width: 640px) {
+  .paper-margin { left: 28px; }
+}
+
+/* Punch holes */
+.paper-holes {
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  pointer-events: none;
+}
+.paper-hole {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #e9e2d3;
+  border: 1px solid rgba(60, 50, 30, 0.25);
+  box-shadow: inset 0 2px 4px rgba(60, 50, 30, 0.35);
+}
+.dark .paper-hole {
+  background: #141a26;
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+@media (max-width: 640px) {
+  .paper-holes { left: 7px; }
+  .paper-hole { width: 12px; height: 12px; }
+}
+
+/* Tape strips */
+.paper-tape {
+  position: absolute;
+  top: -14px;
+  width: 110px;
+  height: 30px;
+  background: rgba(253, 230, 138, 0.75);
+  border-left: 1px dashed rgba(120, 100, 70, 0.35);
+  border-right: 1px dashed rgba(120, 100, 70, 0.35);
+  box-shadow: 0 2px 6px rgba(60, 50, 30, 0.18);
+  backdrop-filter: blur(1px);
+  z-index: 5;
+}
+.paper-tape-left { left: 32px; transform: rotate(-8deg); }
+.paper-tape-right { right: 32px; transform: rotate(7deg); }
+.dark .paper-tape { background: rgba(253, 230, 138, 0.35); }
+
+/* Typewriter / handwritten fonts */
+.paper-type {
+  font-family: 'Courier Prime', 'Courier New', monospace;
+}
+.paper-hand {
+  font-family: 'Caveat', cursive;
+}
+
+/* Rubber stamp */
+.paper-stamp {
+  font-family: 'Courier Prime', monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #1d4ed8;
+  border: 2px solid #1d4ed8;
+  border-radius: 6px;
+  padding: 4px 10px;
+  transform: rotate(-3deg);
+  mask-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E");
+  box-shadow: inset 0 0 0 1px rgba(29, 78, 216, 0.15);
+  opacity: 0.9;
+}
+.dark .paper-stamp {
+  color: #93c5fd;
+  border-color: #93c5fd;
+}
+
+/* Paper form fields — underline style like writing on paper */
+.paper-field input {
+  width: 100% !important;
+  height: 44px !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid #d8cfae !important;
+  border-radius: 0 !important;
+  padding: 0 34px 0 30px !important;
+  font-family: 'Courier Prime', monospace !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transition: border-color 150ms ease !important;
+}
+.dark .paper-field input {
+  color: #f1f5f9 !important;
+  border-bottom-color: rgba(148, 163, 184, 0.4) !important;
+}
+.paper-field input::placeholder {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 13.5px !important;
+  color: #a8a29e !important;
+}
+.paper-field input:focus {
+  border-bottom-color: #2563eb !important;
+  box-shadow: 0 1px 0 #2563eb !important;
+}
+
+/* Role tabs — paper clips */
+.paper-tab {
+  font-family: 'Courier Prime', monospace;
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  border: 1.5px dashed #cbbf9a;
+  background: transparent;
+  color: #78716c;
+  border-radius: 8px;
+  transition: all 150ms ease;
+}
+.dark .paper-tab {
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #94a3b8;
+}
+.paper-tab:hover:not(.active) {
+  border-style: solid;
+  color: #44403c;
+}
+.dark .paper-tab:hover:not(.active) { color: #e2e8f0; }
+.paper-tab.active {
+  background: #1e293b;
+  border: 1.5px solid #1e293b;
+  color: #fffdf4;
+  box-shadow: 0 3px 0 rgba(30, 41, 59, 0.25);
+  transform: rotate(-0.5deg);
+}
+.dark .paper-tab.active {
+  background: #f1f5f9;
+  border-color: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Ink button */
+.paper-btn-ink {
+  background: #1e293b !important;
+  color: #fffdf4 !important;
+  font-family: 'Courier Prime', monospace !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 0 #0f172a !important;
+  border: 1px solid #0f172a !important;
+  transition: transform 120ms ease, box-shadow 120ms ease !important;
+}
+.paper-btn-ink:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 0 #0f172a !important;
+}
+.paper-btn-ink:active:not(:disabled) {
+  transform: translateY(3px) !important;
+  box-shadow: 0 1px 0 #0f172a !important;
+}
+.dark .paper-btn-ink {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 0 #64748b !important;
+}
+
+/* Sticky note */
+.paper-note {
+  background: #fef08a;
+  border-radius: 2px;
+  box-shadow: 0 10px 24px rgba(60, 50, 30, 0.25);
+  position: relative;
+}
+.paper-note::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 90px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.55);
+  border-left: 1px dashed rgba(0,0,0,0.12);
+  border-right: 1px dashed rgba(0,0,0,0.12);
+}
+.dark .paper-note {
+  background: #3b3a1e;
+  color: #fef9c3;
+}
+
+/* Pin */
+.paper-pin {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 30%, #f87171, #b91c1c);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.35), inset 0 -2px 3px rgba(0,0,0,0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-tab, .paper-btn-ink { transition: none !important; }
+}

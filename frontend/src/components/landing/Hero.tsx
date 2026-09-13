@@ -1,0 +1,141 @@
+import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
+import { Zap, ArrowRight, ShieldCheck, CheckCircle2, Clock, Activity, MessageSquare } from 'lucide-react'
+import { Button } from '../ui/Button'
+import { Badge } from '../ui/Badge'
+import { Card } from '../ui/Card'
+
+const Hero = () => {
+  return (
+    <section className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid gap-12 lg:grid-cols-12 items-center">
+        
+        {/* Left Content Column */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="lg:col-span-7 space-y-6"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1, duration: 0.4 }}
+          >
+            <Badge variant="primary" icon={<Zap className="w-3.5 h-3.5 text-blue-500 animate-pulse" />}>
+              Student Support Portal
+            </Badge>
+          </motion.div>
+          
+          <h1 className="paper-font-type text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-white tracking-tight leading-[1.1]">
+            CampusResolve
+            <span className="paper-font-hand block text-blue-700 dark:text-sky-300 mt-2 text-3xl sm:text-4xl lg:text-5xl font-semibold">
+              Report a Problem. Get It Resolved.
+            </span>
+          </h1>
+
+          <p className="text-base sm:text-lg font-semibold text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl">
+            CampusResolve helps students report academic, hostel, and campus issues in one place. Track your complaint and get updates until the issue is resolved.
+          </p>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-4 pt-2">
+            <Link to="/login">
+              <Button size="lg" icon={<ArrowRight className="w-5 h-5" />}>
+                Launch Portal
+              </Button>
+            </Link>
+            <a href="#features">
+              <Button variant="secondary" size="lg">
+                Explore Features
+              </Button>
+            </a>
+          </div>
+
+          {/* Quick Highlight Badges */}
+          <div className="paper-font-type pt-6 border-t-2 border-dashed border-[#d8cfae] dark:border-slate-700 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-bold text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>Easy Submission</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-cyan-500 shrink-0" />
+              <span>Track Complaint</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-blue-500 shrink-0" />
+              <span>AI Assistance</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-indigo-500 shrink-0" />
+              <span>Safe & Secure</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Right Content - Live Status Card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 24 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.2 }}
+          className="lg:col-span-5 relative"
+        >
+          {/* Ambient Glow */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] bg-[#efe7d2]/60 rounded-full pointer-events-none" />
+
+          <Card hoverEffect={true} className="relative z-10">
+            <div className="flex items-center justify-between pb-4 border-b-2 border-dashed border-[#e5dcc3] dark:border-white/10 mb-6">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                </span>
+                <span className="paper-font-type text-xs font-bold uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">
+                  Live Resolution Flow
+                </span>
+              </div>
+              <span className="paper-font-type text-[10px] font-bold uppercase tracking-widest text-blue-700 dark:text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded border-[1.5px] border-dashed border-blue-600/60 -rotate-2">
+                Support Portal
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                { label: 'Submit Complaints Easily', detail: 'Report your problem quickly with the required details', color: 'bg-blue-500', icon: '1' },
+                { label: 'Track Your Complaint', detail: 'Check the latest status and follow the progress of your complaint', color: 'bg-cyan-500', icon: '2' },
+                { label: 'Get Help from AI', detail: 'Use the AI Assistant to help create and manage your complaints', color: 'bg-indigo-500', icon: '3' },
+                { label: 'Safe & Secure', detail: 'Your personal information and complaint details are protected', color: 'bg-emerald-500', icon: '4' }
+              ].map((step) => (
+                <div key={step.label} className="flex items-start gap-4 p-3.5 rounded-md bg-[#f5eedd]/60 dark:bg-white/5 border-[1.5px] border-dashed border-[#e5dcc3] dark:border-white/10 hover:border-solid hover:border-[#cbbf9a] transition-all">
+                  <div className={`paper-font-type w-9 h-9 rounded-md ${step.color} flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-[0_2px_0_rgba(0,0,0,0.3)] -rotate-2`}>
+                    {step.icon}
+                  </div>
+                  <div>
+                    <h4 className="paper-font-type text-sm font-bold text-slate-900 dark:text-white">
+                      {step.label}
+                    </h4>
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
+                      {step.detail}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 pt-4 border-t-2 border-dashed border-[#e5dcc3] dark:border-white/10 flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+              <span className="paper-font-type flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-blue-500" /> Target Resolution Time
+              </span>
+              <span className="paper-font-type text-emerald-700 dark:text-emerald-400 font-bold border-[1.5px] border-dashed border-emerald-600/60 rounded px-2 py-0.5 -rotate-1">
+                &lt; 24 Hours
+              </span>
+            </div>
+          </Card>
+        </motion.div>
+
+      </div>
+    </section>
+  )
+}
+
+export default Hero
