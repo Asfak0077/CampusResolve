@@ -1,5 +1,0 @@
-- generic [ref=f7e2]:
-  - button "Open CampusResolve AI Assistant"
-  - generic [ref=f7e4]:
-    - generic [ref=f7e5]: CR
-    - paragraph [ref=f7e9]: CampusResolve

@@ -2,9 +2,9 @@ const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
 const Student = require('./src/models/Student')
 const Teacher = require('./src/models/Teacher')
-require('dotenv').config()
+const { requireMongoUri } = require('./src/config/env')
 
-const MONGO_URI = process.env.MONGO_URI
+const MONGO_URI = requireMongoUri()
 
 async function testSyncLogic() {
     if (!MONGO_URI) {

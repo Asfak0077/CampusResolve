@@ -1,41 +1,59 @@
-require('dotenv').config();
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+#!/usr/bin/env node
+/**
+ * Create (or update) the CampusResolve admin account.
+ *
+ * Usage:
+ *   node create_admin.js
+ *   ADMIN_EMAIL=you@college.edu ADMIN_PASSWORD='S3cure!Pass' node create_admin.js
+ *
+ * Requires MONGO_URI in backend/.env — never hardcode connection strings here.
+ * Never commit real credentials; this repository is public.
+ */
+const mongoose = require('mongoose')
+const bcrypt = require('bcryptjs')
+const { requireMongoUri } = require('./src/config/env')
+const Student = require('./src/models/Student')
 
-const mongoUri = process.env.MONGO_URI || 'mongodb+srv://asfakrahman43_db_user:ogR4BInjAyhGnzpz@cluster0.nvjmtrl.mongodb.net/?appName=Cluster0';
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@campusresolve.edu').toLowerCase()
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password123'
+const ADMIN_NAME = process.env.ADMIN_NAME || 'Admin Officer'
 
-async function createAdmin() {
-    try {
-        await mongoose.connect(mongoUri);
-        console.log('Connected to MongoDB');
+async function createAdmin () {
+  await mongoose.connect(requireMongoUri())
+  console.log('✓ Connected to MongoDB')
 
-        const User = mongoose.connection.useDb('test').collection('users');
-        let admin = await User.findOne({ email: 'admin@campusresolve.edu' });
+  const existing = await Student.findOne({ email: ADMIN_EMAIL })
+  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10)
 
-        if (!admin) {
-            console.log('Admin user not found, creating...');
-            const hashedPassword = await bcrypt.hash('password123', 10);
-            const newAdmin = {
-                name: 'Admin User',
-                email: 'admin@campusresolve.edu',
-                password: hashedPassword,
-                role: 'admin',
-                createdAt: new Date(),
-                updatedAt: new Date()
-            };
-            const result = await User.insertOne(newAdmin);
-            admin = await User.findOne({ _id: result.insertedId });
-        }
+  if (existing) {
+    existing.role = 'admin'
+    existing.isActive = true
+    existing.passwordHash = passwordHash
+    existing.isPasswordSet = true
+    await existing.save()
+    console.log(`✓ Updated existing admin: ${ADMIN_EMAIL}`)
+  } else {
+    await Student.create({
+      name: ADMIN_NAME,
+      email: ADMIN_EMAIL,
+      role: 'admin',
+      department: 'Administration',
+      passwordHash,
+      isPasswordSet: true,
+      isActive: true
+    })
+    console.log(`✓ Created admin: ${ADMIN_EMAIL}`)
+  }
 
-        console.log('Admin User ID:', admin._id.toString());
-        console.log('Email:', admin.email);
-
-    } catch (error) {
-        console.error('Error:', error);
-    } finally {
-        await mongoose.disconnect();
-        process.exit();
-    }
+  if (!process.env.ADMIN_PASSWORD) {
+    console.warn('\n⚠️  Used the default demo password. Set ADMIN_PASSWORD=... to choose your own,')
+    console.warn('   and change it from the app before exposing this instance to the internet.')
+  }
 }
 
-createAdmin();
+createAdmin()
+  .catch((error) => {
+    console.error('❌ create_admin failed:', error.message)
+    process.exitCode = 1
+  })
+  .finally(() => mongoose.disconnect())

@@ -47,18 +47,8 @@ async function getExpressApp() {
     res.json({ ok: true, service: 'sdcfrs-backend', timestamp: new Date().toISOString() });
   });
 
-  // Mount all routes
-  expressApp.use('/api/auth', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'authRoutesEnhanced.js')));
-  expressApp.use('/api/profile', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'profileRoutes.js')));
-  expressApp.use('/api/users', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'profileRoutes.js')));
-  expressApp.use('/api/complaints', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'complaintRoutesEnhanced.js')));
-  expressApp.use('/api/teachers', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'teacherRoutes.js')));
-  expressApp.use('/api/notifications', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'notificationRoutes.js')));
-  expressApp.use('/api/upload', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'uploadRoutes.js')));
-  expressApp.use('/api/analytics', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'teacherAnalyticsRoutes.js')));
-  expressApp.use('/api/feedback', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'feedbackRoutes.js')));
-  expressApp.use('/api/chatbot', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'chatbotRoutes.js')));
-  expressApp.use('/api/ai-intelligence', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'aiIntelligenceRoutes.js')));
+  // Mount all routes from the shared table (keeps parity with backend/src/server.js)
+  require(path.join(__dirname, '..', 'backend', 'src', 'routes')).mountRoutes(expressApp)
 
   // Error handler
   expressApp.use((error, _req, res, _next) => {

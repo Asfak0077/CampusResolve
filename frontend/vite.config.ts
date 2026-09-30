@@ -29,6 +29,22 @@ export default defineConfig(({ mode }) => {
     define: {
       'import.meta.env.VITE_VERCEL': JSON.stringify(env.VITE_VERCEL || 'false'),
       'import.meta.env.PROD': JSON.stringify(mode === 'production'),
+    },
+    build: {
+      // Split large third-party libraries into their own chunks so a single
+      // 1.7 MB bundle doesn't have to be re-downloaded whenever app code changes.
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            react: ['react', 'react-dom', 'react-router-dom'],
+            charts: ['recharts'],
+            motion: ['framer-motion'],
+            supabase: ['@supabase/supabase-js'],
+            query: ['@tanstack/react-query', 'axios', 'zustand'],
+          }
+        }
+      },
+      chunkSizeWarningLimit: 800
     }
   }
 })

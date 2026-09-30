@@ -173,7 +173,7 @@ export const UnifiedAssistant: React.FC = () => {
     const isDetailRequestedNow = /tell me more|explain in detail|read the full|complete explanation|more details|full details/i.test(inputValue || text)
     let toSpeak = text || ''
     // If text is long (>38 words or has markdown bullets), summarize to short voice
-    const words = toSpeak.replace(/[*_#`\[\]|]/g, ' ').split(/\s+/).filter(Boolean)
+    const words = toSpeak.replace(/[*_#`[\]|]/g, ' ').split(/\s+/).filter(Boolean)
     if (!isDetailRequestedNow && words.length > 38) {
       const sentences = toSpeak.replace(/```[\s\S]*?```/g, '').split(/[.!?]+/).map(s => s.trim()).filter(Boolean)
       let short = sentences.slice(0, 2).join('. ') + '.'
@@ -384,7 +384,7 @@ export const UnifiedAssistant: React.FC = () => {
                           onCancelFeedback={() => void processUserMessage({ text: 'Cancel', source: 'text' })}
                           onSelectResolvedComplaint={(c) => void processUserMessage({ text: `Give feedback for ${c.complaintId}`, source: 'text' })}
                           onSelectComplaintId={(id) => handleSelectComplaintId(id)}
-                          onJoinComplaint={async (cid) => { setIsJoiningComplaint(true); try { const { joinComplaintFromChat } = await import('../../services/chatbotService'); await joinComplaintFromChat(cid); void processUserMessage({ text: `Joined complaint ${cid}`, source: 'text' }) } catch {} finally { setIsJoiningComplaint(false) } }}
+                          onJoinComplaint={async (cid) => { setIsJoiningComplaint(true); try { const { joinComplaintFromChat } = await import('../../services/chatbotService'); await joinComplaintFromChat(cid); void processUserMessage({ text: `Joined complaint ${cid}`, source: 'text' }) } catch (err) { console.warn('Join complaint from chat failed:', err) } finally { setIsJoiningComplaint(false) } }}
                           onCreateAnyway={(d) => handleCreateComplaintCard(d)}
                           isSubmittingDraft={isSubmittingDraft} isSubmittingFeedback={isSubmittingFeedback} isJoiningComplaint={isJoiningComplaint}
                           onSpeak={voiceEnabled ? () => handleSpeakMessage(msg.id, (msg as any).spokenText || msg.text) : undefined} onStopSpeak={() => textToSpeechService.stop()}

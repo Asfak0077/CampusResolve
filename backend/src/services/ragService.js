@@ -11,7 +11,10 @@ const path = require('path')
 const OpenAI = require('openai')
 
 // ── Environment & Config ──────────────────────────────────────────────────────
-const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || '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'
+// NOTE: never hardcode API keys here. This file previously shipped a literal
+// NVIDIA key as a fallback, which leaks the credential to anyone reading the
+// repository. Keys must come from the environment only (.env / host secrets).
+const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || ''
 const NVIDIA_BASE_URL = process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1'
 const NVIDIA_EMBED_MODEL = process.env.NVIDIA_EMBED_MODEL || 'nvidia/nemotron-3-embed-1b'
 const NVIDIA_CHAT_MODEL = process.env.NVIDIA_CHAT_MODEL || 'meta/llama-3.2-11b-vision-instruct'

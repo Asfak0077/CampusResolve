@@ -38,6 +38,7 @@ const {
 
 const { orchestrateChat } = require('../utils/aiOrchestrator')
 const { joinExistingComplaint, findDuplicateComplaints } = require('../utils/duplicateDetectionEngine')
+const { getJwtSecret } = require('../utils/jwtSecret')
 
 const router = express.Router()
 
@@ -72,7 +73,7 @@ const extractAuthContext = async (req) => {
     try {
       const token = authHeader.split(' ')[1]
       if (token && token !== 'null' && token !== 'undefined') {
-        const secret = process.env.SECRET_KEY || process.env.JWT_SECRET || 'dev-secret'
+        const secret = getJwtSecret()
         const decoded = jwt.verify(token, secret)
         const lookupId = decoded.id || decoded.userId || decoded.sub || decoded.email
         const tokenRole = decoded.role || decoded.userRole || 'student'
