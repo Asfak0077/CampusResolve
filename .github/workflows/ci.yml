@@ -60,6 +60,9 @@ jobs:
       - name: Syntax-check every backend module
         run: npm --workspace backend run lint
 
+      - name: Secret scan (tracked files)
+        run: npm run scan:secrets
+
       - name: Unit tests
         run: npm --workspace backend run test
 

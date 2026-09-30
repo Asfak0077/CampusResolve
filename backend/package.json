@@ -10,7 +10,8 @@
     "build:frontend": "echo \"Backend build not required\"",
     "lint": "node scripts/syntax-check.mjs",
     "test": "node scripts/run-tests.mjs",
-    "test:security": "node scripts/security-smoke-test.mjs"
+    "test:security": "node scripts/security-smoke-test.mjs",
+    "scan:secrets": "node scripts/secret-scan.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

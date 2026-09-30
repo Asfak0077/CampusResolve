@@ -44,9 +44,11 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 All three must pass locally — this is exactly what CI runs:
 
 ```bash
-npm run lint                 # ESLint, zero errors required
+npm run lint                 # ESLint + backend syntax check, zero errors required
+npm test                     # backend unit tests
+npm run scan:secrets         # no credentials in tracked files
 npm run build:frontend       # tsc + vite build
-node backend/scripts/security-smoke-test.mjs   # with the API running
+npm run test:security        # 33 authorization checks, with the API running
 ```
 
 The security smoke test verifies that anonymous callers are rejected and each

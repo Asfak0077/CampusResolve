@@ -15,7 +15,8 @@
     "lint": "npm --workspace frontend run lint && npm --workspace backend run lint",
     "vercel-build": "npm run build:frontend",
     "test:security": "npm --workspace backend run test:security",
-    "test": "npm --workspace backend run test"
+    "test": "npm --workspace backend run test",
+    "scan:secrets": "npm --workspace backend run scan:secrets"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

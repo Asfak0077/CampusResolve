@@ -83,19 +83,23 @@ repository**. The files have been removed on the current branch, but *the secret
 are still in the Git history and must be treated as compromised.* Deleting a file
 does **not** un-leak a secret — **rotation is the only real fix.**
 
-| Alert | Secret | Originally in | Status in this branch | Required action |
-| :---: | ------ | ------------- | --------------------- | --------------- |
-| [#1](../../security/secret-scanning/1) | MongoDB Atlas URI (`asfakrahman43_db_user` / `asfakrahman`) | `backend/test-db.js` | file deleted | **Rotate the password in Atlas → Database Access** |
-| [#2](../../security/secret-scanning/2) | MongoDB Atlas URI (`asfakrahman43_db_user` / `ogR4BInjAyhGnzpz`) | `backend/update_admin_password.js` | script rewritten to read `MONGO_URI` | **Rotate the password in Atlas** |
-| [#3](../../security/secret-scanning/3) | MongoDB Atlas URI (`asfakrahman43_db_user` / `asfak2006`) | `backend/update_teachers.js` | file deleted | **Rotate the password in Atlas** |
-| (scan) | NVIDIA NIM key `nvapi-yhk…` | `backend/src/services/ragService.js` | hardcoded fallback removed | **Revoke + reissue** at <https://build.nvidia.com> |
+| Alert | Secret type | Originally in | Status in this branch | Required action |
+| :---: | ------------ | ------------- | --------------------- | --------------- |
+| [#1](../../security/secret-scanning/1) | MongoDB Atlas connection URI with credentials | `backend/test-db.js` | file deleted | **Rotate the database user's password in Atlas → Database Access** |
+| [#2](../../security/secret-scanning/2) | MongoDB Atlas connection URI with credentials | `backend/update_admin_password.js` | script now reads `MONGO_URI` from the environment | **Rotate the password in Atlas** |
+| [#3](../../security/secret-scanning/3) | MongoDB Atlas connection URI with credentials | `backend/update_teachers.js` | file deleted | **Rotate the password in Atlas** |
+| (from review) | NVIDIA NIM API key | `backend/src/services/ragService.js` | hardcoded fallback removed | **Revoke + reissue** at <https://build.nvidia.com> |
+
+> The secret values are deliberately **not** reproduced here — this file is public
+> too, and copying a leaked credential into a new file leaks it again. Open the
+> alert links above to see the values if you need them.
 
 Because all three Atlas URIs name the **same database user**, rotating that one
 password invalidates every leaked variant at once.
 
 ### Rotate now — 10 minute checklist
 
-1. **MongoDB Atlas** → *Database Access* → edit `asfakrahman43_db_user` → **Edit Password** → generate a new one. Update `MONGO_URI` in your hosting environment (`backend/.env` locally) and redeploy. The old password stops working immediately.
+1. **MongoDB Atlas** → *Database Access* → select the user named in the alerts → **Edit Password** → generate a new one. Update `MONGO_URI` in your hosting environment (`backend/.env` locally) and redeploy. The old password stops working immediately.
 2. **Atlas** → *Network Access* → remove `0.0.0.0/0` if present and allow only your host's IPs.
 3. **Atlas** → *Database Access* → confirm the user has `readWrite` on the app database only, not `atlasAdmin`.
 4. **NVIDIA** → revoke the old key, issue a new one, set `NVIDIA_API_KEY` in the environment (never in code).
@@ -114,13 +118,11 @@ requires a coordinated force-push:
 
 ```bash
 # pip install git-filter-repo
-git filter-repo --replace-text <(cat <<'EOF'
-asfakrahman43_db_user:asfak2006==>REDACTED
-asfakrahman43_db_user:ogR4BInjAyhGnzpz==>REDACTED
-asfakrahman43_db_user:asfakrahman==>REDACTED
-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==>REDACTED
-EOF
-)
+# expressions.txt must list the revoked secrets, one per line, e.g.
+#   <leaked-string>==>REDACTED
+# Build it from the values shown on the secret-scanning alert pages — and keep
+# the file OUT of the repository (it contains the secrets by definition).
+git filter-repo --replace-text expressions.txt
 git push --force --all && git push --force --tags
 ```
 
