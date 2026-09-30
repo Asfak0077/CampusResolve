@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="frontend/public/og-image.png" alt="CampusResolve — Smart Complaint & Feedback Management" width="760" />
+
 # 🎓 CampusResolve
 
 **Smart digital complaint & feedback management for campuses — with an AI assistant that actually resolves things.**
