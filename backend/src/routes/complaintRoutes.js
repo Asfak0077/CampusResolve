@@ -1,27 +1,34 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const complaintController = require('../controllers/complaintController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const validate = require('../middleware/validateMiddleware');
 const { complaintSchemas } = require('../utils/validationSchemas');
 
 const router = express.Router();
+const protectedComplaintLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 // ============ STUDENT COMPLAINT ROUTES ============
-router.post('/create', protect, authorize('student'), validate(complaintSchemas.create), complaintController.createComplaint);
-router.get('/student/:studentId', protect, authorize('student', 'admin'), complaintController.getStudentComplaints);
-router.get('/details/:complaintId', protect, complaintController.getComplaintDetails);
-router.put('/:complaintId/feedback', protect, authorize('student'), complaintController.addComplaintFeedback);
-router.delete('/:complaintId', protect, authorize('student'), complaintController.deleteComplaint);
+router.post('/create', protectedComplaintLimiter, protect, authorize('student'), validate(complaintSchemas.create), complaintController.createComplaint);
+router.get('/student/:studentId', protectedComplaintLimiter, protect, authorize('student', 'admin'), complaintController.getStudentComplaints);
+router.get('/details/:complaintId', protectedComplaintLimiter, protect, complaintController.getComplaintDetails);
+router.put('/:complaintId/feedback', protectedComplaintLimiter, protect, authorize('student'), complaintController.addComplaintFeedback);
+router.delete('/:complaintId', protectedComplaintLimiter, protect, authorize('student'), complaintController.deleteComplaint);
 
 // ============ ADMIN COMPLAINT ROUTES ============
-router.get('/admin/all-complaints', protect, authorize('admin'), complaintController.getAllComplaints);
-router.put('/:complaintId/assign', protect, authorize('admin'), complaintController.assignComplaint);
-router.get('/admin/analytics', protect, authorize('admin'), complaintController.getAdminAnalytics);
-router.get('/admin/activity-logs', protect, authorize('admin'), (req, res) => res.status(501).json({message: 'Not fully implemented in controller yet'}));
+router.get('/admin/all-complaints', protectedComplaintLimiter, protect, authorize('admin'), complaintController.getAllComplaints);
+router.put('/:complaintId/assign', protectedComplaintLimiter, protect, authorize('admin'), complaintController.assignComplaint);
+router.get('/admin/analytics', protectedComplaintLimiter, protect, authorize('admin'), complaintController.getAdminAnalytics);
+router.get('/admin/activity-logs', protectedComplaintLimiter, protect, authorize('admin'), (req, res) => res.status(501).json({message: 'Not fully implemented in controller yet'}));
 
 // ============ TEACHER COMPLAINT ROUTES ============
-router.get('/teacher/:teacherId', protect, authorize('teacher'), (req, res) => res.status(501).json({message: 'Not fully implemented in controller yet'}));
-router.put('/:complaintId/update-status', protect, authorize('teacher', 'admin'), complaintController.updateComplaintStatus);
+router.get('/teacher/:teacherId', protectedComplaintLimiter, protect, authorize('teacher'), (req, res) => res.status(501).json({message: 'Not fully implemented in controller yet'}));
+router.put('/:complaintId/update-status', protectedComplaintLimiter, protect, authorize('teacher', 'admin'), complaintController.updateComplaintStatus);
 
 module.exports = router;
 

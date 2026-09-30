@@ -1,10 +1,17 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const authController = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const validate = require('../middleware/validateMiddleware');
 const { authSchemas } = require('../utils/validationSchemas');
 
 const router = express.Router();
+const protectedRouteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 // ============ PUBLIC ROUTES ============
 
@@ -28,10 +35,10 @@ router.post('/google/verify', authController.googleVerify);
 // ============ PROTECTED ROUTES ============
 
 // Profile & Configuration
-router.get('/me', protect, authController.getMe);
-router.put('/profile', protect, authController.updateProfile);
-router.post('/change-password', protect, authController.changePassword || ((req, res) => res.status(501).json({message: 'Not implemented'})));
-router.post('/set-password', protect, authController.setPassword || ((req, res) => res.status(501).json({message: 'Not implemented'})));
+router.get('/me', protectedRouteLimiter, protect, authController.getMe);
+router.put('/profile', protectedRouteLimiter, protect, authController.updateProfile);
+router.post('/change-password', protectedRouteLimiter, protect, authController.changePassword || ((req, res) => res.status(501).json({message: 'Not implemented'})));
+router.post('/set-password', protectedRouteLimiter, protect, authController.setPassword || ((req, res) => res.status(501).json({message: 'Not implemented'})));
 
 // Logout
 router.post('/logout', authController.logout);
