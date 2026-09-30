@@ -1,4 +1,5 @@
 const express = require('express')
+const rateLimit = require('express-rate-limit')
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
@@ -8,6 +9,12 @@ const Teacher = require('../models/Teacher')
 const { inMemoryStore } = require('../utils/inMemoryStore')
 
 const router = express.Router()
+const protectedProfileLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false
+})
 
 // Ensure uploads/profile directory exists
 const profileUploadDir = path.join(__dirname, '../../uploads/profile')
@@ -257,9 +264,9 @@ router.get('/public/:userId', async (req, res) => {
   }
 })
 
-router.get('/', protect, getProfileHandler)
-router.get('/me', protect, getProfileHandler)
-router.get('/profile', protect, getProfileHandler)
+router.get('/', protectedProfileLimiter, protect, getProfileHandler)
+router.get('/me', protectedProfileLimiter, protect, getProfileHandler)
+router.get('/profile', protectedProfileLimiter, protect, getProfileHandler)
 
 // ============ UPDATE PROFILE (/api/profile/update, /api/profile, /api/users/profile) ============
 const updateProfileHandler = async (req, res) => {
@@ -335,9 +342,9 @@ const updateProfileHandler = async (req, res) => {
   }
 }
 
-router.put('/update', protect, updateProfileHandler)
-router.put('/', protect, updateProfileHandler)
-router.put('/profile', protect, updateProfileHandler)
+router.put('/update', protectedProfileLimiter, protect, updateProfileHandler)
+router.put('/', protectedProfileLimiter, protect, updateProfileHandler)
+router.put('/profile', protectedProfileLimiter, protect, updateProfileHandler)
 
 // ============ UPLOAD IMAGE HANDLER ============
 const handleAvatarUpload = async (req, res) => {
@@ -408,9 +415,9 @@ const handleAvatarUpload = async (req, res) => {
   }
 }
 
-router.post('/upload-image', protect, uploadMiddleware, handleAvatarUpload)
-router.post('/upload-photo', protect, uploadMiddleware, handleAvatarUpload)
-router.post('/upload-avatar', protect, uploadMiddleware, handleAvatarUpload)
-router.post('/profile/upload-image', protect, uploadMiddleware, handleAvatarUpload)
+router.post('/upload-image', protectedProfileLimiter, protect, uploadMiddleware, handleAvatarUpload)
+router.post('/upload-photo', protectedProfileLimiter, protect, uploadMiddleware, handleAvatarUpload)
+router.post('/upload-avatar', protectedProfileLimiter, protect, uploadMiddleware, handleAvatarUpload)
+router.post('/profile/upload-image', protectedProfileLimiter, protect, uploadMiddleware, handleAvatarUpload)
 
 module.exports = router
