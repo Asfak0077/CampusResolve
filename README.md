@@ -1,222 +1,423 @@
-# CampusResolve - Smart Digital Complaint & Feedback Management System
+<div align="center">
 
-CampusResolve is a production-ready, cloud-native web platform for students, faculty, and administrators to collaborate on resolving campus issues.
+<img src="frontend/public/og-image.png" alt="CampusResolve — Smart Complaint & Feedback Management" width="760" />
+
+# 🎓 CampusResolve
+
+**Smart digital complaint & feedback management for campuses — with an AI assistant that actually resolves things.**
+
+Students raise issues, faculty act on them, admins see everything, and an AI assistant answers status questions, drafts complaints and files feedback by voice or text.
+
+[![Node](https://img.shields.io/badge/node-%3E%3D%2018-3c873a?logo=node.js&logoColor=white)](https://nodejs.org)
+[![React](https://img.shields.io/badge/react-18-61dafb?logo=react&logoColor=white)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/typescript-5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Express](https://img.shields.io/badge/express-4-000000?logo=express&logoColor=white)](https://expressjs.com)
+[![MongoDB](https://img.shields.io/badge/mongodb-atlas-47a248?logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
+[![Vercel](https://img.shields.io/badge/deploy-vercel-000000?logo=vercel&logoColor=white)](https://vercel.com)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4)](#-contributing)
+
+[Live demo](https://mini-project-frontend-five.vercel.app) · [Architecture](docs/ARCHITECTURE.md) · [API reference](docs/API.md) · [Deployment](docs/DEPLOYMENT.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Tech debt](docs/TECH_DEBT.md)
+
+</div>
 
 ---
 
-## 1. High-Level Architecture Diagram (Text)
+## 📖 What is CampusResolve?
 
+CampusResolve replaces the "email the office and hope" workflow with a tracked, accountable pipeline:
+
+1. **A student files a complaint** — typed, or dictated to the AI assistant.
+2. **The AI classifies it** — category, department, priority, duplicate detection, and a resolution-time prediction.
+3. **It is routed to the right department** and its teacher, who updates the status through a documented lifecycle.
+4. **The student watches progress** on a timeline, gets notified in-app + by email, and rates the resolution afterwards.
+5. **Admins see the whole campus** — KPIs, department workload, SLA escalations, teacher performance and AI recommendations.
+
+Everything works **with or without MongoDB**: if `MONGO_URI` is unreachable, the backend runs on an in-memory store with seed data so the UI is fully explorable offline.
+
+---
+
+## ✨ Features
+
+<table>
+<tr><th>👩‍🎓 Students</th><th>👨‍🏫 Faculty</th></tr>
+<tr><td>
+
+- File complaints with attachments
+- AI-drafted & AI-enhanced descriptions
+- Live status timeline per complaint
+- Search, filter and track history
+- Feedback + star rating after resolution
+- Profile, QR digital ID, notifications
+
+</td><td>
+
+- Department-scoped complaint queue
+- One-click status updates (with remarks)
+- Activity log per teacher
+- Performance analytics & ratings
+
+</td></tr>
+<tr><th>🛡️ Administrators</th><th>🤖 AI assistant</th></tr>
+<tr><td>
+
+- Campus-wide KPIs and charts
+- Teacher & department management
+- Assign / reassign / escalate by SLA
+- Complaint & feedback analytics
+- AI campus summary + recommendations
+
+</td><td>
+
+- Text **and** voice conversation
+- RAG over live campus data
+- Answers "where is my complaint?"
+- Files complaints and feedback by voice
+- Navigation by intent ("open my history")
+
+</td></tr>
+</table>
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart TB
+    subgraph Client["🖥️ React SPA (Vite + TypeScript)"]
+        UI["Landing · Dashboards · Chat / Voice assistant"]
+        Store["Zustand auth + theme stores"]
+        APIClient["Axios client (JWT interceptor)"]
+    end
+
+    subgraph Server["⚙️ Express API (Node 18+)"]
+        Auth["Auth: email/password · Google · OTP reset"]
+        Core["Complaints · Feedback · Teachers · Notifications"]
+        AI["AI intelligence · RAG engine · Chatbot"]
+        Files["Uploads (local disk)"]
+    end
+
+    subgraph Data["🗄️ Data & Services"]
+        Mongo[("MongoDB Atlas / in-memory store")]
+        Supa[("Supabase (optional: notifications + RLS)")]
+        Mail["SMTP (Nodemailer)"]
+        LLM["Google Gemini · NVIDIA NIM · OpenRouter"]
+    end
+
+    UI --> APIClient -->|"REST + JWT"| Server
+    UI <-.->|"Socket.IO live updates"| Server
+    Auth --> Mongo
+    Core --> Mongo
+    AI --> Mongo
+    AI --> LLM
+    Core --> Supa
+    Core --> Mail
 ```
-[Client SPA]
-  ├── React + Tailwind + Framer Motion UI
-  ├── Google OAuth Client SDK
-  └── Axios API client with JWT interceptor
-        ↓ HTTPS
-[API Gateway / Express Server]
-  ├── Auth Service (email + Google OAuth)
-  ├── Complaint Service
-  ├── Teacher Service
-  ├── Analytics Service
-  ├── File Upload Service (S3-compatible)
-  └── Notification Service (Nodemailer + Queue)
-        ↓
-[MongoDB Atlas] <──> [Redis/Bull Queue] <──> [SMTP Provider]
-```
 
-- **Infra:** NGINX/CloudFront for TLS + caching, Dockerized Node services scaled behind PM2/containers. Logs shipped to Application Insights/Datadog.
-- **Security:** HTTPS everywhere, JWT (RS256), refresh token rotation, rate limiting, CORS whitelist, Helmet, Mongo sanitize.
+- **Two entry points, one route table.** `backend/src/server.js` (long-running Express, used locally and on Render/PM2) and `api/index.js` (Vercel serverless) both mount routes from `backend/src/routes/index.js`, so they can't drift apart.
+- **Optional dependencies degrade gracefully.** No Supabase? Notifications skip the mirror. No MongoDB? The in-memory store takes over. Missing AI keys? The assistant falls back to rule-based replies.
+- **Security by default.** Helmet, an origin allowlist for CORS, `express-mongo-sanitize`, rate limiting, bcrypt password hashes, JWT auth with a mandatory secret in production, and record-level authorization so students and teachers only ever see their own data.
+
+Deeper dive: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**
 
 ---
 
-## 2. Frontend Overview
+## 🧰 Tech stack
 
-- **Tech:** React 18 + TypeScript + Vite, Tailwind CSS, Framer Motion, React Router, TanStack Query, Zustand store, Recharts, Google Identity Services, Axios.
-- **Key pages:** Landing, Login (email + Google), Student Dashboard, Admin Dashboard, Teacher Management.
-- **UX:** Modern glassmorphism palette, parallax hero, animated forms, skeleton loaders, dark-mode toggle.
-
-### Component Tree (abridged)
-```
-App
- ├─ LandingPage
- │   ├─ Hero
- │   ├─ Features
- │   └─ Testimonials
- ├─ LoginPage
- │   ├─ LoginTabs
- │   ├─ LoginForm
- │   └─ GoogleButton
- ├─ StudentLayout
- │   ├─ Sidebar
- │   └─ StudentDashboard
- │       ├─ ComplaintForm
- │       ├─ StatusTracker
- │       └─ Timeline
- └─ AdminLayout
-     ├─ KPIGrid
-     ├─ ComplaintTable
-     ├─ ResolutionChart
-     └─ TeacherPanel
-```
+| Layer | Technology |
+| ----- | ---------- |
+| **Frontend** | React 18, TypeScript 5, Vite 5, Tailwind CSS 3, Framer Motion, Zustand, TanStack Query, Recharts, Socket.IO client, react-router 6 |
+| **Backend** | Node.js 18+, Express 4 (CommonJS), Mongoose 8, Socket.IO, JWT, bcryptjs, Nodemailer, Multer, Joi, Helmet, express-rate-limit, Winston-style logger |
+| **AI** | Google Gemini (`@google/generative-ai`), NVIDIA NIM (OpenAI-compatible), OpenRouter fallback, in-house RAG engine + intent classifier, Web Speech API for voice |
+| **Data** | MongoDB Atlas (primary), optional Supabase (notifications + Row Level Security), JSON in-memory store for offline/demo mode |
+| **Auth** | Email/password (bcrypt + JWT), Google Identity Services + Supabase OAuth, OTP-based password reset, Google-scoped email allowlist |
+| **Deploy** | Vercel (SPA + serverless API), any Node host for the Express server |
 
 ---
 
-## 3. Backend Overview
+## 🚀 Quick start
 
-- **Tech:** Node.js 20, TypeScript, Express, Mongoose, JWT, Google Auth Library, Bcrypt, Nodemailer, BullMQ (Redis), Multer/S3 SDK, Celebrate/Joi, Winston, Helmet, Rate limiter.
-- **Modules:** `auth`, `complaints`, `teachers`, `analytics`, `notifications`, `uploads`.
-- **Jobs:** SLA escalation worker, email dispatcher.
+### Prerequisites
 
-### Service Architecture
-```
-server.ts -> registers middleware -> mounts feature routers
-modules/
-  auth/ (controller, service, validators)
-  complaints/
-  teachers/
-  analytics/
-  notifications/
-  uploads/
-```
+- **Node.js 18+** and npm 9+
+- *(optional)* MongoDB Atlas connection string — without it the app runs in offline demo mode
+- *(optional)* A Google OAuth Client ID for Google sign-in
 
----
-
-## 4. Database Design (MongoDB)
-
-| Collection | Fields |
-|------------|--------|
-| `users` | name, email, role, googleId, passwordHash, avatarUrl, lastLoginAt, createdAt |
-| `teachers` | name, department, email, designation, active, createdAt |
-| `complaints` | studentId, category, department, teacherId, description, attachments, status, priority, adminRemarks, timeline[], slaDueAt, timestamps |
-| `emailLogs` | recipient, subject, template, status, error, sentAt |
-| `tokens` | userId, refreshTokenHash, expiresAt, revoked |
-
-Indexes: unique email on users/teachers, compound `complaints` on `{ department, status }`, TTL on tokens, partial index for `timeline.timestamp`.
-
----
-
-## 5. API Flow Summary
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Admin invite / manual user creation |
-| POST | `/api/auth/login` | Email/password login |
-| GET | `/api/auth/google` | OAuth redirect |
-| GET | `/api/auth/google/callback` | Google callback -> JWT |
-| POST | `/api/auth/token` | Refresh JWT |
-| POST | `/api/auth/logout` | Revoke refresh token |
-| GET/POST | `/api/complaints` | List/create complaints |
-| GET/PATCH | `/api/complaints/:id` | Detail/update status |
-| POST | `/api/complaints/:id/assign` | Assign teacher |
-| POST | `/api/complaints/:id/escalate` | Force escalation |
-| CRUD | `/api/teachers` | Manage teacher directory |
-| GET | `/api/analytics/*` | KPI and chart data |
-| POST | `/api/uploads` | Signed upload URLs |
-| GET | `/api/email/logs` | Email audit (admin) |
-
----
-
-## 6. Google Authentication Flow
-
-1. Frontend loads Google Identity Services SDK using OAuth Client ID.
-2. User clicks "Sign in with Google"; GIS returns credential ID token.
-3. Frontend posts token to `/api/auth/google/verify`.
-4. Backend verifies token signature + domain, upserts user, generates access/refresh JWT pair.
-5. Access JWT returned in response, refresh token stored in httpOnly secure cookie.
-6. Subsequent API calls include `Authorization: Bearer <JWT>`; refresh endpoint rotates tokens.
-
----
-
-## 7. Email Notification Flow
-
-- Controllers emit events to Notification Service.
-- Jobs persisted in Redis queue; worker renders MJML templates -> HTML -> sends via Nodemailer (SMTP/Gmail API).
-- On success/failure, log stored in `emailLogs` for audit; retries with exponential backoff; escalation emails triggered by SLA worker.
-
-Triggers:
-1. Complaint submission confirmation to student.
-2. Assignment email to teacher + student.
-3. Status update and resolution summary.
-4. Escalation reminder to admin after SLA breach.
-
----
-
-## Critical Setup Steps (Required for Login)
-
-Before running the app, you MUST configure these two external services:
-
-### 1. 🟢 Fix Database Connection (MongoDB Atlas)
-If you see `MongoDB connection error` or `Network Error`:
-1. Log in to [MongoDB Atlas](https://cloud.mongodb.com/).
-2. Go to **Network Access** (left sidebar).
-3. Click **+ Add IP Address**.
-4. Select **Allow Access from Anywhere** (0.0.0.0/0) for development.
-5. Click **Confirm**.
-
-### 2. 🔵 Fix Google Sign-In (Google Cloud)
-If you see `The given origin is not allowed`:
-1. Log in to [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
-2. Edit your **OAuth 2.0 Client ID**.
-3. Under **Authorized JavaScript origins**, add:
-   - `http://localhost:5173`
-   - `http://127.0.0.1:5173`
-4. Click **Save**.
-
----
-
-## Setup Instructions Strategy
-
-- Framer Motion page transitions (opacity/translate with spring ease), hero parallax, KPI cards count-up, stepper progress animations, table row micro-interactions, skeleton shimmer for loading states, respects `prefers-reduced-motion`.
-
----
-
-## 9. Deployment Overview
-
-- **Frontend:** Build with Vite, deploy to Vercel/Netlify/S3+CloudFront, environment vars for API base + Google client ID.
-- **Backend:** Dockerized Express service, deploy to Azure App Service/Render/Heroku; PM2 cluster for horizontal scaling.
-- **DB & Queue:** MongoDB Atlas (M10+) and Redis (Azure Cache/Upstash) with VNet/IP whitelisting.
-- **CI/CD:** GitHub Actions -> lint/test/build -> deploy; infrastructure secrets stored securely.
-- **Monitoring:** Application Insights/Datadog dashboards, uptime monitors, alert on queue lag/error spikes.
-
----
-
-## 10. Getting Started
+### 1. Clone and install
 
 ```bash
-# install all workspaces
-yarn install # or npm install / pnpm install
-
-# run frontend
-yarn dev:frontend
-
-# run backend
-yarn dev:backend
+git clone https://github.com/Asfak0077/CampusResolve.git
+cd CampusResolve
+npm install          # installs the frontend + backend workspaces
 ```
 
-### Default local logins
+### 2. Configure the backend
 
-- Student login: `student@campusresolve.edu` / `password123`
-- Admin login: `admin@campusresolve.edu` / `pass123@A` (or `admin123`)
+```bash
+cp backend/.env.example backend/.env
+```
 
-#### 🚨 IMPORTANT: Teacher Logins (Updated)
+Minimum to boot — the API starts even with everything else blank:
 
-The generic `TCH1001` ID does not exist in the database. You **must** log in with one of the department-specific IDs below.
+```dotenv
+PORT=5001
+MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/<db>
+SECRET_KEY=<run: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
+FRONTEND_URL=http://localhost:5173
+```
 
-| Department | Teacher ID    | Password     | Name               |
-|------------|---------------|--------------|--------------------|
-| **CSE**    | `TCH-CSE-001` | `teachcse`   | Dr. Rajesh Kumar   |
-| **ECE**    | `TCH-ECE-001` | `teach123`   | Dr. Priya Sharma   |
-| **MECH**   | `TCH-MECH-001`| `teach123`   | Dr. Arun Patel     |
-| **EEE**    | `TCH-EEE-001` | `teach123`   | Dr. Meena Iyer     |
-| **AIDS**   | `TCH-AIDS-001`| `teach123`   | Dr. Karthik Reddy  |
-| **IT**     | `TCH-IT-001`  | `teach123`   | Dr. Lakshmi Nair   |
+> 🔴 **Never commit `.env`.** This repository is public. If a connection string or API
+> key has ever been committed anywhere, rotate it — see [SECURITY.md](SECURITY.md).
 
-Provide `.env` files for both frontend and backend using the `.env.example` templates before running services.
+### 3. Configure the frontend
 
-### Frontend env (required for Google login)
-
-Create [frontend/.env](frontend/.env) with:
+```bash
+cp frontend/.env.example frontend/.env
+```
 
 ```dotenv
 VITE_API_BASE_URL=http://localhost:5001/api
-VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 ```
+
+### 4. Run both services
+
+```bash
+npm run dev            # backend on :5001 + frontend on :5173
+# or individually
+npm run dev:backend
+npm run dev:frontend
+```
+
+Open **http://localhost:5173** and sign in with a demo account below.
+
+---
+
+## 🔑 Demo accounts
+
+Seeded automatically in development (`SEED_DEMO_DATA=true`), never in production unless you opt in.
+
+| Role | Username | Password | Notes |
+| ---- | -------- | -------- | ----- |
+| 👩‍🎓 Student | `student@campusresolve.edu` | `password123` | Comes with demo complaints `CR-001`, `CR-002` |
+| 🛡️ Admin | `admin@campusresolve.edu` | `password123` | Override with `DEMO_ADMIN_PASSWORD` |
+| 👨‍🏫 Teacher | `TCH-CSE-001` (or the teacher's email) | `teach123` | One per department: `TCH-ECE-001`, `TCH-MECH-001`, `TCH-EEE-001`, `TCH-AIDS-001`, `TCH-IT-001` |
+
+Change these before letting anyone real use the deployment:
+
+```bash
+ADMIN_PASSWORD='S3cure!Pass' node backend/create_admin.js
+TEACHER_DEFAULT_PASSWORD='Campus@2026' node backend/create_teachers.js
+```
+
+> In **offline mode** (no database) only `TCH-CSE-001 / teach123` is accepted for teachers.
+
+---
+
+## ⚙️ Environment variables
+
+### Backend — `backend/.env`
+
+| Variable | Required | Purpose |
+| -------- | :------: | ------- |
+| `PORT` | | API port (default `5001`) |
+| `MONGO_URI` | | MongoDB Atlas connection string. Omit to run in offline/demo mode |
+| `SECRET_KEY` | ✅* | JWT signing secret. *Required in production — the server refuses to sign tokens without it |
+| `JWT_SECRET` | | Alias accepted for `SECRET_KEY` |
+| `FRONTEND_URL` | | Origin used in emails and OAuth redirects (`http://localhost:5173`) |
+| `GOOGLE_CLIENT_ID` | | Verifies Google ID tokens |
+| `EMAIL_USER` / `EMAIL_PASS` | | SMTP credentials for complaint + password-reset mail. `EMAIL_FROM`/`EMAIL_ADMIN` override the sender |
+| `GEMINI_API_KEY` | | Google Gemini — primary chatbot model |
+| `NVIDIA_API_KEY` | | NVIDIA NIM (OpenAI-compatible) — RAG embeddings + generation |
+| `OPENROUTER_API_KEY` | | Fallback LLM provider |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | | Optional notification mirroring + password recovery |
+| `ALLOWED_EMAILS` | | Comma-separated Google-login allowlist |
+| `SEED_DEMO_DATA` | | `true` forces demo seeding, `false` disables it (default: on outside production) |
+| `DEMO_PASSWORD` / `DEMO_ADMIN_PASSWORD` / `TEACHER_DEFAULT_PASSWORD` | | Seed passwords |
+| `MONGO_TLS_ALLOW_INVALID_CERTS` | | `true` only for dev proxies that break TLS validation |
+
+### Frontend — `frontend/.env`
+
+| Variable | Required | Purpose |
+| -------- | :------: | ------- |
+| `VITE_API_BASE_URL` | ✅ | API base, e.g. `http://localhost:5001/api` |
+| `VITE_BACKEND_URL` | | Dev-server proxy target for `/api`, `/socket.io`, `/uploads` |
+| `VITE_GOOGLE_CLIENT_ID` | | Google Identity Services client ID |
+| `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` | | Enables Supabase-authenticated notifications |
+| `VITE_ENABLE_GOOGLE_AUTH` | | Set `true` to show the Google button (defaults off) |
+
+---
+
+## 📜 Available scripts
+
+From the repository root (npm workspaces):
+
+| Command | What it does |
+| ------- | ------------ |
+| `npm run dev` | Backend + frontend together |
+| `npm run dev:backend` | Express API with `node --watch` on `:5001` |
+| `npm run dev:frontend` | Vite dev server on `:5173` |
+| `npm run build:frontend` | Type-check (`tsc`) + production build to `frontend/dist` |
+| `npm run lint` | Frontend ESLint **and** a backend syntax check (both must pass) |
+| `npm test` | Backend unit tests (22 tests, no database required) |
+| `npm run test:security` | 33-check authorization + hardening regression test — run it with the API up |
+| `npm run vercel-build` | Build command used by Vercel |
+
+Backend maintenance scripts (`node backend/<script>.js`, all read `MONGO_URI` from the environment):
+
+| Script | Purpose |
+| ------ | ------- |
+| `check-env.js` | Diagnose missing/placeholder configuration |
+| `create_admin.js` · `create_teachers.js` | Seed admin and department teachers |
+| `update_admin_password.js` | Reset the admin password (`ADMIN_PASSWORD=...`) |
+| `list_students.js` · `get_admin_id.js` | Inspect accounts |
+| `test_all_endpoints.js` | Smoke-test a running API |
+| `scripts/security-smoke-test.mjs` | Verify anonymous calls are rejected and role boundaries hold |
+| `scripts/resetTeachersPwd.js` | Bulk-reset teacher passwords (needs `--yes`) |
+| `scripts/clear_complaints_feedback.js` | Wipe complaints + feedback (needs `--yes`) |
+
+---
+
+## 🔌 API overview
+
+Base URL: `http://localhost:5001/api` — full reference in **[docs/API.md](docs/API.md)**.
+
+| Group | Prefix | Highlights |
+| ----- | ------ | ---------- |
+| Auth | `/api/auth` | `student-login`, `teacher-login`, `verify-google-user`, `verify-otp`, `set-password` |
+| Complaints | `/api/complaints` | `create`, `student/:id`, `admin/all-complaints`, `:id/assign`, `:id/update-status`, `admin/analytics` |
+| Feedback | `/api/feedback` | submit, by student, by teacher, by department |
+| Teachers | `/api/teachers` | list, create, remove |
+| Notifications | `/api/notifications` | list, `unread-count`, `mark-read/:id`, `mark-all-read` |
+| Analytics | `/api/analytics/teachers/performance` | Teacher ratings & resolution times |
+| AI | `/api/ai-intelligence` | `complaints/:id` analysis, `admin/campus-summary`, `admin/recommendations` |
+| Assistant | `/api/chatbot` | `message`, `create-complaint`, `join-complaint`, `submit-feedback` |
+| Uploads | `/api/upload` | `multiple` (files served from `/uploads/*`) |
+| Health | `/api/health` | Liveness probe |
+
+---
+
+## 🗂️ Project structure
+
+```
+CampusResolve/
+├── api/index.js               # Vercel serverless entry → shared route table
+├── backend/
+│   ├── src/
+│   │   ├── config/            # db + env helpers
+│   │   ├── middleware/        # protect (JWT), authorize(role)
+│   │   ├── models/            # Student, Teacher, Complaint, Feedback, Notification…
+│   │   ├── routes/            # index.js = single mount table + feature routers
+│   │   ├── services/          # AI intelligence, email, RAG
+│   │   ├── templates/emails/  # HTML transactional emails
+│   │   └── utils/             # RAG engine, escalation worker, seeds, socket, stores
+│   └── scripts/               # Operational + destructive (guarded) scripts
+├── frontend/
+│   └── src/
+│       ├── components/        # landing, admin, student, chat, ds (design system)
+│       ├── context/ contexts/ # AI agent + notification providers
+│       ├── routes/            # page-level components (see below)
+│       ├── services/          # apiClient + voice/chat/AI services
+│       ├── store/             # Zustand stores
+│       └── styles/            # Tailwind layers + page CSS
+├── docs/                      # architecture, API, deployment, troubleshooting
+└── .github/                   # CI, issue + PR templates
+```
+
+**Frontend routes:** `/` landing · `/login` · `/student`, `/student/history`, `/student/feedback`, `/student/profile` · `/teacher` · `/admin`, `/admin/analytics`, `/admin/feedback`, `/admin/teachers`, `/admin/recommendations` · `/profile/:userId` public profile · `/about` · password flows (`/forgot-password`, `/reset-password`, `/set-password`).
+
+---
+
+## 🤖 How the AI assistant works
+
+```
+user text/voice
+   → speech recognition (Web Speech API)
+   → intent classifier        (services/ai/intentClassifier.ts, voice/IntentRouter.ts)
+   → RAG retrieval            (backend RAG engine over complaints, feedback, campus KB)
+   → agent / workflow         (status lookup, complaint draft, feedback, navigation)
+   → response generator       (screen text + shorter spoken variant)
+   → text-to-speech
+```
+
+Design choices worth knowing:
+
+- **Screen vs speech text.** Long answers are summarized before being spoken; only the first 1–3 sentences are read aloud unless the user asks for detail.
+- **Confirmation gates.** Complaint creation and feedback submission always require explicit confirmation before writing to the database.
+- **Graceful degradation.** With no AI keys configured the assistant answers from the rule-based knowledge base instead of failing.
+
+---
+
+## ☁️ Deployment
+
+The repository ships a root `vercel.json` that builds the SPA and serves the API through a single serverless function.
+
+```bash
+npm i -g vercel
+vercel            # preview
+vercel --prod     # production
+```
+
+Set `MONGO_URI`, `SECRET_KEY`, `FRONTEND_URL`, `EMAIL_*` and `VITE_API_BASE_URL` in the Vercel dashboard, and **not** in the repo. Full checklist → **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+
+---
+
+## 🩺 Troubleshooting
+
+| Symptom | Fix |
+| ------- | --- |
+| `MongoDB connection attempt 1/3 failed` | Atlas → Network Access → allow your IP (or `0.0.0.0/0` for dev only) |
+| `The given origin is not allowed` on Google sign-in | Add `http://localhost:5173` to Authorized JavaScript origins in Google Cloud Console |
+| `SECRET_KEY is not set` warning | Generate one and add it to `backend/.env` |
+| API replies but data resets on restart | `MONGO_URI` is missing — you're in offline/in-memory mode |
+| `Supabase disabled` warning | Expected without Supabase keys; the API continues normally |
+
+More in **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**.
+
+---
+
+## 🗺️ Roadmap
+
+Tracked in more detail — with rationale and suggested approaches — in **[docs/TECH_DEBT.md](docs/TECH_DEBT.md)**.
+
+- [ ] Object storage for uploads (serverless filesystems are ephemeral)
+- [ ] Move the SLA escalation worker to a scheduled job so it runs on Vercel
+- [ ] Route-level code splitting and a frontend test suite (Vitest + RTL)
+- [ ] Reduce the 372 `no-explicit-any` lint warnings, directory by directory
+- [ ] Upgrade Vite 5 → 8 and react-router 6 → 7 (remaining `npm audit` items)
+- [ ] Delete the ~36 unreferenced modules listed in the tech-debt backlog
+- [ ] Typed shared API contracts between frontend and backend
+- [ ] Accessibility pass (keyboard navigation, screen-reader labels, contrast)
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)** for setup, branching and the PR checklist, and our **[Code of Conduct](CODE_OF_CONDUCT.md)**.
+
+```bash
+git checkout -b feat/your-feature
+npm run lint && npm run build:frontend   # must pass before you open a PR
+```
+
+---
+
+## 🔐 Security
+
+- Report vulnerabilities privately following **[SECURITY.md](SECURITY.md)**.
+- Secrets live in environment variables only. `.env` is git-ignored.
+- If a credential was ever committed, **rotate it** — deleting the file does not remove it from Git history.
+
+---
+
+## 📄 License
+
+No license has been granted for this project yet, so all rights are reserved by the author.
+If you want to reuse, fork or build on CampusResolve, open an issue to discuss licensing.
+
+---
+
+<div align="center">
+
+Built with care for campuses that are tired of lost complaints. ⭐ Star the repo if it helped you.
+
+</div>

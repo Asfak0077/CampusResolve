@@ -141,8 +141,10 @@ export class TextToSpeechService {
       .replace(/\|/g, ', ')
       // Remove checkmarks and special symbols
       .replace(/[✓✗✔✘☐☑]/g, '')
-      // Remove emoji-like symbols (keep text emojis for context)
-      .replace(/[🏛️🔒⭐❌]/g, '')
+      // Remove emoji-like symbols (keep text emojis for context).
+      // Alternation (not a character class) keeps the variation selector
+      // attached to its base emoji, which is what no-misleading-character-class expects.
+      .replace(/🏛️|🔒|⭐|❌/gu, '')
       // Handle complaint IDs: CR-001 → C R 001
       .replace(/\b(CR|CMP)-(\d+)\b/gi, (_, prefix, num) => {
         return prefix.split('').join(' ') + ' ' + num

@@ -13,8 +13,15 @@ const connectDatabase = async () => {
   while (!connected && attempts < 3) {
     attempts++
     try {
+      // NOTE: `tlsAllowInvalidCertificates` disables certificate validation and
+      // exposes the connection to MITM attacks. It is opt-in only, for local
+      // networks with self-signed/intercepted certificates (set
+      // MONGO_TLS_ALLOW_INVALID_CERTS=true in backend/.env).
+      const allowInvalidCerts =
+        String(process.env.MONGO_TLS_ALLOW_INVALID_CERTS || '').toLowerCase() === 'true'
+
       await mongoose.connect(mongoUri, {
-        tlsAllowInvalidCertificates: true,
+        tlsAllowInvalidCertificates: allowInvalidCerts,
         serverSelectionTimeoutMS: 4000
       })
       connected = true

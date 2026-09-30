@@ -127,10 +127,26 @@ const generateUniqueId = (prefix: string = 'msg') => {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
 }
 
+/**
+ * Pause the active workflow inside the orchestrator's memory.
+ * Best-effort: the memory object may not exist yet, and a failure here must
+ * never break navigation.
+ */
+const pauseWorkflowInOrchestratorMemory = (): void => {
+  try {
+    const memory = (agentOrchestrator as any)?.memory
+    if (!memory) return
+    memory.pausedWorkflow = memory.activeWorkflow
+    memory.activeWorkflow = null
+  } catch (err) {
+    console.warn('Could not pause workflow in orchestrator memory:', err)
+  }
+}
+
 const cleanSpokenText = (text: string): string => {
   if (!text) return ''
   return text
-    .replace(/[*_#`\[\]]/g, '')
+    .replace(/[*_#`[\]]/g, '')
     .replace(/https?:\/\/\S+/g, '')
     .replace(/\s+/g, ' ')
     .trim()
@@ -172,7 +188,7 @@ const ensureShortVoice = (voiceText: string, screenText: string, userQuery: stri
   const detail = isDetailRequested(userQuery)
   const voiceClean = cleanSpokenText(voiceText)
   const voiceWords = voiceClean.split(/\s+/).filter(Boolean).length
-  const hasComplex = /[•\-\*]\s+|\n\n|\|/.test(voiceText) || /[•\-\*]\s+|\n\n|\|/.test(screenText)
+  const hasComplex = /[•\-*]\s+|\n\n|\|/.test(voiceText) || /[•\-*]\s+|\n\n|\|/.test(screenText)
   if (!detail && (voiceWords > 38 || (hasComplex && voiceWords > 30))) {
     return ruleBasedVoiceSummary(screenText || voiceText, false)
   }
@@ -621,7 +637,7 @@ export const GlobalAIAgentProvider: React.FC<{ children: ReactNode }> = ({ child
         if (navDuringWf) {
           workflowManager.pause()
           // Also pause in orchestrator memory if possible
-          try { (agentOrchestrator as any).memory && ((agentOrchestrator as any).memory.pausedWorkflow = (agentOrchestrator as any).memory.activeWorkflow); (agentOrchestrator as any).memory.activeWorkflow = null } catch { /* ignore */ }
+          pauseWorkflowInOrchestratorMemory()
           const navRes = navigationAgent.handleNavigation(navDuringWf)
           navigate(navDuringWf.path)
           unifiedConversationManager.setRoute(navDuringWf.path)
@@ -647,7 +663,7 @@ export const GlobalAIAgentProvider: React.FC<{ children: ReactNode }> = ({ child
       const earlyNav = navigationAgent.resolveNavigation(raw)
       if (earlyNav && activeWf) {
         workflowManager.pause()
-        try { (agentOrchestrator as any).memory && ((agentOrchestrator as any).memory.pausedWorkflow = (agentOrchestrator as any).memory.activeWorkflow); (agentOrchestrator as any).memory.activeWorkflow = null } catch { /* ignore */ }
+        pauseWorkflowInOrchestratorMemory()
         const navRes = navigationAgent.handleNavigation(earlyNav)
         navigate(earlyNav.path)
         unifiedConversationManager.setRoute(earlyNav.path)

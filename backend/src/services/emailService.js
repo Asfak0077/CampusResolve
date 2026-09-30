@@ -2,21 +2,35 @@ const nodemailer = require('nodemailer')
 const mongoose = require('mongoose')
 const EmailLog = require('../models/EmailLog')
 
-// Centralized Environment Variables
-const EMAIL_USER = process.env.EMAIL_USER || 'campusresolve40@gmail.com'
+// Centralized Environment Variables.
+// No addresses are hardcoded: sending from an account that happens to be baked
+// into the source is worse than not sending at all. Without EMAIL_USER /
+// EMAIL_PASS every send is skipped and logged (see sendMailSafe).
+const EMAIL_USER = process.env.EMAIL_USER || ''
 const EMAIL_PASS = process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD || ''
-const EMAIL_FROM = process.env.EMAIL_FROM || EMAIL_USER || 'campusresolve40@gmail.com'
-const EMAIL_ADMIN = process.env.EMAIL_ADMIN || 'campusresolve40@gmail.com'
+const EMAIL_FROM = process.env.EMAIL_FROM || EMAIL_USER
+const EMAIL_ADMIN = process.env.EMAIL_ADMIN || EMAIL_USER
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
 
-// Create reusable Nodemailer transporter using Gmail
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: EMAIL_USER,
-    pass: EMAIL_PASS
-  }
-})
+const EMAIL_ENABLED = Boolean(EMAIL_USER && EMAIL_PASS)
+
+if (!EMAIL_ENABLED) {
+  console.warn(
+    '[EMAIL] Disabled: set EMAIL_USER and EMAIL_PASS (a Gmail App Password) to enable ' +
+    'complaint notifications and password-reset mail. Emails are logged and skipped until then.'
+  )
+}
+
+// Create reusable Nodemailer transporter (Gmail by default; TRANSPORT_SERVICE overrides)
+const transporter = EMAIL_ENABLED
+  ? nodemailer.createTransport({
+      service: process.env.EMAIL_SERVICE || 'gmail',
+      auth: {
+        user: EMAIL_USER,
+        pass: EMAIL_PASS
+      }
+    })
+  : null
 
 // Helper to escape HTML characters
 const escapeHtml = (value = '') =>
@@ -190,8 +204,8 @@ const sendMailSafe = async ({ to, subject, html, type = 'other' }) => {
     return { success: false, reason: 'No recipient provided' }
   }
 
-  if (!EMAIL_USER || !EMAIL_PASS) {
-    console.warn(`[EMAIL_SKIPPED] Missing EMAIL_USER or EMAIL_PASS in environment variables.`)
+  if (!EMAIL_ENABLED) {
+    console.warn(`[EMAIL_SKIPPED] EMAIL_USER / EMAIL_PASS not configured — not sending "${subject}" to ${to}`)
     return { success: false, reason: 'Missing credentials' }
   }
 

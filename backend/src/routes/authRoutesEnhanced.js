@@ -1,4 +1,6 @@
 const express = require('express')
+const { getAllowedEmails } = require('../utils/seedAllowedEmails')
+const { apiLimiter } = require('../middleware/rateLimiters')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
@@ -10,8 +12,14 @@ const { sendPasswordResetEmail, sendLoginNotification, sendPasswordChangeNotific
 const { OAuth2Client } = require('google-auth-library')
 const { supabase } = require('../utils/supabaseClient')
 const { inMemoryStore } = require('../utils/inMemoryStore')
+const { getJwtSecret } = require('../utils/jwtSecret')
+const { authLimiter } = require('../middleware/rateLimiters')
+const { generateOtp, randomStudentId } = require('../utils/secureRandom')
 
 const router = express.Router()
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
@@ -25,7 +33,7 @@ const signToken = (payload) => {
     studentId: payload.studentId || undefined,
     teacherId: payload.teacherId || undefined
   }
-  return jwt.sign(tokenPayload, process.env.SECRET_KEY || 'dev-secret', { expiresIn: '1d' })
+  return jwt.sign(tokenPayload, getJwtSecret(), { expiresIn: '1d' })
 }
 
 const getAuthPayload = (req) => {
@@ -33,7 +41,7 @@ const getAuthPayload = (req) => {
   const token = header.startsWith('Bearer ') ? header.slice(7) : ''
   if (!token) return null
   try {
-    const payload = jwt.verify(token, process.env.SECRET_KEY || 'dev-secret')
+    const payload = jwt.verify(token, getJwtSecret())
     // Normalize common claim names to `id` and `role`
     if (payload && !payload.id) {
       payload.id = payload.userId || payload.user_id || payload.sub || payload.uid || payload._id || payload.user || payload.mongoId || payload.userIdString || payload.userId
@@ -274,10 +282,10 @@ const handleStudentLogin = async (req, res) => {
   }
 }
 
-router.post('/student-login', handleStudentLogin)
-router.post('/login', handleStudentLogin)
+router.post('/student-login', authLimiter, handleStudentLogin)
+router.post('/login', authLimiter, handleStudentLogin)
 
-router.post('/student-signup', async (req, res) => {
+router.post('/student-signup', authLimiter, async (req, res) => {
   try {
     const { name, email, password, studentId, department, phone } = req.body
 
@@ -340,7 +348,7 @@ router.post('/student-signup', async (req, res) => {
 
 // ============ TEACHER ROUTES ============
 
-router.post('/teacher-login', async (req, res) => {
+router.post('/teacher-login', authLimiter, async (req, res) => {
   try {
     const { teacherId, password } = req.body
     if (!teacherId || !password) {
@@ -658,7 +666,7 @@ router.post('/verify-email-exists', async (req, res) => {
 })
 
 // Forgot Password - Student (OTP Flow)
-router.post('/forgot-password/student', async (req, res) => {
+router.post('/forgot-password/student', authLimiter, async (req, res) => {
   try {
     const { email } = req.body
 
@@ -674,7 +682,7 @@ router.post('/forgot-password/student', async (req, res) => {
     }
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    const otp = generateOtp()
 
     // Hash OTP for storage
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex')
@@ -699,7 +707,7 @@ router.post('/forgot-password/student', async (req, res) => {
 })
 
 // Verify OTP
-router.post('/verify-otp', async (req, res) => {
+router.post('/verify-otp', authLimiter, async (req, res) => {
   try {
     const { email, otp } = req.body
 
@@ -740,7 +748,7 @@ router.post('/verify-otp', async (req, res) => {
 })
 
 // Forgot Password - Teacher (OTP Flow)
-router.post('/forgot-password/teacher', async (req, res) => {
+router.post('/forgot-password/teacher', authLimiter, async (req, res) => {
   try {
     const { email } = req.body
 
@@ -756,7 +764,7 @@ router.post('/forgot-password/teacher', async (req, res) => {
     }
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    const otp = generateOtp()
 
     // Hash OTP for storage
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex')
@@ -874,12 +882,12 @@ async function handleUpdatePassword(req, res) {
   }
 }
 
-router.post('/update-password', handleUpdatePassword)
+router.post('/update-password', authLimiter, handleUpdatePassword)
 router.put('/update-password', handleUpdatePassword)
 router.put('/reset-password', handleUpdatePassword)
 
 // Send CampusResolve Branded Password Reset Email
-router.post('/send-password-reset-email', async (req, res) => {
+router.post('/send-password-reset-email', authLimiter, async (req, res) => {
   try {
     const { email, resetUrl, name } = req.body
     if (!email) {
@@ -896,7 +904,7 @@ router.post('/send-password-reset-email', async (req, res) => {
 })
 
 // Reset Password (Unified OTP Flow)
-router.post('/reset-password', async (req, res, next) => {
+router.post('/reset-password', authLimiter, async (req, res, next) => {
   if (!req.body.otp && req.body.password) {
     return handleUpdatePassword(req, res, next)
   }
@@ -946,7 +954,7 @@ router.post('/reset-password', async (req, res, next) => {
 })
 
 // Change Password (Authenticated)
-router.post('/change-password', async (req, res) => {
+router.post('/change-password', authLimiter, async (req, res) => {
   try {
     const { userId, userType, currentPassword, newPassword } = req.body
 
@@ -1011,7 +1019,7 @@ router.post('/change-password', async (req, res) => {
 })
 
 // Set Password (for Google users)
-router.post('/set-password', async (req, res) => {
+router.post('/set-password', authLimiter, async (req, res) => {
   try {
     const { password } = req.body
 
@@ -1121,8 +1129,11 @@ router.post('/verify-google-user', async (req, res) => {
       if (allowDoc || student) isAllowed = true
     } else {
       student = inMemoryStore.findStudentByEmail(normalizedEmail)
-      const devAllowed = ['student@campusresolve.edu', 'asf28146@gmail.com', 'eswaraprasath115@gmail.com']
-      if (student || devAllowed.includes(normalizedEmail)) isAllowed = true
+      // Offline/demo mode has no database allowlist, so fall back to the
+      // ALLOWED_EMAILS environment variable (see src/config/env.js and
+      // src/utils/seedAllowedEmails.js). Personal addresses must not be
+      // hardcoded here — this repository is public.
+      if (student || getAllowedEmails().includes(normalizedEmail)) isAllowed = true
     }
 
     if (!isAllowed && !student) {
@@ -1141,7 +1152,7 @@ router.post('/verify-google-user', async (req, res) => {
         googleId: googleId || '',
         profilePicture: picture || '',
         role: 'student',
-        studentId: 'CR' + Math.floor(100000 + Math.random() * 900000),
+        studentId: randomStudentId(),
         department: 'General',
         isActive: true,
         isPasswordSet: false

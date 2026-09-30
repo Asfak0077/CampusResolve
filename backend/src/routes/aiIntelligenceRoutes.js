@@ -1,4 +1,5 @@
 const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters')
 const mongoose = require('mongoose')
 const Complaint = require('../models/Complaint')
 const ComplaintAIAnalysis = require('../models/ComplaintAIAnalysis')
@@ -10,6 +11,9 @@ const {
 } = require('../services/aiIntelligenceService')
 
 const router = express.Router()
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 
 /**
  * Helper to fetch complaint by ID or ticket ID from DB or inMemoryStore

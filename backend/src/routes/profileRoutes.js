@@ -1,4 +1,5 @@
 const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters')
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
@@ -6,8 +7,12 @@ const { protect } = require('../middleware/authMiddleware')
 const Student = require('../models/Student')
 const Teacher = require('../models/Teacher')
 const { inMemoryStore } = require('../utils/inMemoryStore')
+const { uniqueFileSuffix } = require('../utils/secureRandom')
 
 const router = express.Router()
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 
 // Ensure uploads/profile directory exists
 const profileUploadDir = path.join(__dirname, '../../uploads/profile')
@@ -22,7 +27,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase()
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
+    const uniqueSuffix = uniqueFileSuffix()
     cb(null, `${uniqueSuffix}${ext}`)
   }
 })

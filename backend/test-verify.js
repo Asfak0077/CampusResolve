@@ -1,10 +1,10 @@
 const mongoose = require('mongoose')
-require('dotenv').config()
+const { requireMongoUri } = require('./src/config/env')
 
 const Complaint = require('./src/models/Complaint')
 const Teacher = require('./src/models/Teacher')
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/campusresolve-redressal'
+const MONGO_URI = requireMongoUri()
 
 async function verify() {
     try {

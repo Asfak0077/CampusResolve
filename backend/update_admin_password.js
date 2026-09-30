@@ -1,49 +1,53 @@
-require('dotenv').config();
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+#!/usr/bin/env node
+/**
+ * Reset the admin password (or create the admin if it does not exist).
+ *
+ * Usage:
+ *   ADMIN_PASSWORD='S3cure!Pass' node update_admin_password.js
+ *
+ * Requires MONGO_URI in backend/.env.
+ */
+const mongoose = require('mongoose')
+const bcrypt = require('bcryptjs')
+const { requireMongoUri } = require('./src/config/env')
+const Student = require('./src/models/Student')
 
-const mongoUri = process.env.MONGO_URI || 'mongodb+srv://asfakrahman43_db_user:ogR4BInjAyhGnzpz@cluster0.nvjmtrl.mongodb.net/?appName=Cluster0';
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@campusresolve.edu').toLowerCase()
 
-async function updateAdminPassword() {
-    try {
-        await mongoose.connect(mongoUri);
-        console.log('Connected to MongoDB');
+async function updateAdminPassword () {
+  await mongoose.connect(requireMongoUri())
+  console.log('✓ Connected to MongoDB')
 
-        const User = mongoose.connection.useDb('test').collection('users');
-        const adminEmail = 'admin@campusresolve.edu';
+  if (!process.env.ADMIN_PASSWORD) {
+    throw new Error("Set ADMIN_PASSWORD='<new password>' when running this script.")
+  }
 
-        // Check if admin exists
-        const admin = await User.findOne({ email: adminEmail });
+  const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10)
 
-        if (!admin) {
-            console.log('Admin user not found. Creating one...');
-            const hashedPassword = await bcrypt.hash('admin123', 10);
-            const newAdmin = {
-                name: 'Admin User',
-                email: adminEmail,
-                password: hashedPassword,
-                role: 'admin',
-                createdAt: new Date(),
-                updatedAt: new Date()
-            };
-            await User.insertOne(newAdmin);
-            console.log('Admin user created with password "admin123".');
-        } else {
-            console.log('Admin user found. Updating password...');
-            const hashedPassword = await bcrypt.hash('admin123', 10);
-            await User.updateOne(
-                { email: adminEmail },
-                { $set: { password: hashedPassword, updatedAt: new Date() } }
-            );
-            console.log('Admin password updated to "admin123".');
-        }
+  let admin = await Student.findOne({ email: ADMIN_EMAIL })
+  if (!admin) {
+    admin = new Student({
+      name: process.env.ADMIN_NAME || 'Admin Officer',
+      email: ADMIN_EMAIL,
+      role: 'admin',
+      department: 'Administration',
+      studentId: ''
+    })
+    console.log(`• Admin ${ADMIN_EMAIL} not found — creating it`)
+  }
 
-    } catch (error) {
-        console.error('Error:', error);
-    } finally {
-        await mongoose.disconnect();
-        process.exit();
-    }
+  admin.role = 'admin'
+  admin.passwordHash = passwordHash
+  admin.isPasswordSet = true
+  admin.isActive = true
+  await admin.save()
+
+  console.log(`✓ Admin password updated for ${ADMIN_EMAIL}`)
 }
 
-updateAdminPassword();
+updateAdminPassword()
+  .catch((error) => {
+    console.error('❌ update_admin_password failed:', error.message)
+    process.exitCode = 1
+  })
+  .finally(() => mongoose.disconnect())

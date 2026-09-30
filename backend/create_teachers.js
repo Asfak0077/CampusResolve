@@ -1,92 +1,75 @@
 #!/usr/bin/env node
-
 /**
- * Script to create teacher accounts for all 6 departments
- * Run: node create_teachers.js
+ * Seed one teacher account per department.
+ *
+ * Usage:
+ *   node create_teachers.js
+ *   TEACHER_DEFAULT_PASSWORD='Campus@2026' node create_teachers.js
+ *
+ * Requires MONGO_URI in backend/.env. Passwords come from the environment —
+ * never hardcode credentials in this file.
  */
-
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
-require('dotenv').config()
-
+const { requireMongoUri } = require('./src/config/env')
 const Teacher = require('./src/models/Teacher')
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/campusresolve-redressal'
+const DEFAULT_TEACHER_PASSWORD = process.env.TEACHER_DEFAULT_PASSWORD || 'teach123'
 
 const departments = [
-    { dept: 'CSE', teacherId: 'TCH-CSE-001', name: 'CSE Teacher', email: 'cse.teacher@campusresolve.edu', password: 'CSE@123' },
-    { dept: 'ECE', teacherId: 'TCH-ECE-001', name: 'ECE Teacher', email: 'ece.teacher@campusresolve.edu', password: 'ECE@123' },
-    { dept: 'MECH', teacherId: 'TCH-MECH-001', name: 'MECH Teacher', email: 'mech.teacher@campusresolve.edu', password: 'MECH@123' },
-    { dept: 'EEE', teacherId: 'TCH-EEE-001', name: 'EEE Teacher', email: 'eee.teacher@campusresolve.edu', password: 'EEE@123' },
-    { dept: 'AIDS', teacherId: 'TCH-AIDS-001', name: 'AIDS Teacher', email: 'aids.teacher@campusresolve.edu', password: 'AIDS@123' },
-    { dept: 'IT', teacherId: 'TCH-IT-001', name: 'IT Teacher', email: 'it.teacher@campusresolve.edu', password: 'IT@123' }
+  { dept: 'CSE', teacherId: 'TCH-CSE-001', name: 'Dr. Rajesh Kumar', email: 'cse.teacher@campusresolve.edu' },
+  { dept: 'ECE', teacherId: 'TCH-ECE-001', name: 'Dr. Priya Sharma', email: 'ece.teacher@campusresolve.edu' },
+  { dept: 'MECH', teacherId: 'TCH-MECH-001', name: 'Dr. Arun Patel', email: 'mech.teacher@campusresolve.edu' },
+  { dept: 'EEE', teacherId: 'TCH-EEE-001', name: 'Dr. Meena Iyer', email: 'eee.teacher@campusresolve.edu' },
+  { dept: 'AIDS', teacherId: 'TCH-AIDS-001', name: 'Dr. Karthik Reddy', email: 'aids.teacher@campusresolve.edu' },
+  { dept: 'IT', teacherId: 'TCH-IT-001', name: 'Dr. Lakshmi Nair', email: 'it.teacher@campusresolve.edu' }
 ]
 
-async function createTeachers() {
-    try {
-        console.log('Connecting to MongoDB...')
-        await mongoose.connect(MONGO_URI)
-        console.log('✓ Connected to MongoDB\n')
+async function createTeachers () {
+  await mongoose.connect(requireMongoUri())
+  console.log('✓ Connected to MongoDB')
 
-        console.log('Creating demo teacher accounts for all departments...\n')
-        console.log('='.repeat(70))
+  const passwordHash = await bcrypt.hash(DEFAULT_TEACHER_PASSWORD, 10)
 
-        for (const { dept, teacherId, name, email, password } of departments) {
-            // Check by email or teacherId to avoid duplicates
-            const teacherExists = await Teacher.findOne({ $or: [{ email }, { teacherId }] })
+  for (const { dept, teacherId, name, email } of departments) {
+    const existing = await Teacher.findOne({ $or: [{ teacherId }, { email }] })
 
-            if (!teacherExists) {
-                const passwordHash = await bcrypt.hash(password, 10)
-                await Teacher.create({
-                    teacherId,
-                    name,
-                    email,
-                    department: dept,
-                    designation: 'Teacher',
-                    passwordHash,
-                    activeComplaints: 0,
-                    resolvedComplaints: 0,
-                    phone: '',
-                    specialization: dept,
-                    emailNotifications: true,
-                    isActive: true,
-                    role: 'teacher'
-                })
-                console.log(`✓ Created ${dept.padEnd(6)} teacher: ${name}`)
-                console.log(`  Email: ${email}`)
-                console.log(`  Password: ${password}`)
-                console.log('-'.repeat(70))
-            } else {
-                console.log(`✓ ${dept.padEnd(6)} teacher already exists with Email: ${email}`)
-                
-                // Update their password and role to match the new requirements
-                const passwordHash = await bcrypt.hash(password, 10)
-                teacherExists.passwordHash = passwordHash
-                teacherExists.role = 'teacher'
-                teacherExists.name = name // Ensure name is the simplified demo name
-                await teacherExists.save()
-                
-                console.log(`  Updated password to: ${password}`)
-                console.log('-'.repeat(70))
-            }
-        }
-
-        console.log('\n✓ All teacher accounts processed successfully!')
-        console.log('\nTeacher Login Credentials:')
-        console.log('='.repeat(70))
-        departments.forEach(({ dept, email, password }) => {
-            console.log(`${dept.padEnd(6)}: ${email.padEnd(30)} | Password: ${password}`)
-        })
-        console.log('='.repeat(70))
-
-        await mongoose.disconnect()
-        console.log('✓ Disconnected from MongoDB')
-        process.exit(0)
-    } catch (error) {
-        console.error('Error creating teachers:', error)
-        await mongoose.disconnect()
-        process.exit(1)
+    if (existing) {
+      // Never overwrite an existing account's password — only fill in metadata.
+      existing.name = existing.name || name
+      existing.department = existing.department || dept
+      existing.teacherId = existing.teacherId || teacherId
+      existing.isActive = true
+      existing.role = 'teacher'
+      await existing.save()
+      console.log(`• Kept existing ${dept} teacher (${teacherId})`)
+      continue
     }
+
+    await Teacher.create({
+      teacherId,
+      name,
+      email,
+      department: dept,
+      designation: 'Professor',
+      passwordHash,
+      activeComplaints: 0,
+      resolvedComplaints: 0,
+      isActive: true,
+      role: 'teacher'
+    })
+    console.log(`✓ Created ${dept} teacher: ${name} (${teacherId})`)
+  }
+
+  if (!process.env.TEACHER_DEFAULT_PASSWORD) {
+    console.warn(`\n⚠️  Newly created teachers use the default password "teach123".`)
+    console.warn('   Set TEACHER_DEFAULT_PASSWORD=... for anything beyond a local demo.\n')
+  }
 }
 
 createTeachers()
+  .catch((error) => {
+    console.error('❌ create_teachers failed:', error.message)
+    process.exitCode = 1
+  })
+  .finally(() => mongoose.disconnect())

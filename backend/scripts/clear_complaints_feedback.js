@@ -1,12 +1,13 @@
 const mongoose = require('mongoose')
-require('dotenv').config()
+const { requireMongoUri, confirmDestructive } = require('../src/config/env')
 
 const Complaint = require('../src/models/Complaint')
 const Feedback = require('../src/models/Feedback')
 
-const MONGO_URI = process.env.MONGO_URI
+const MONGO_URI = requireMongoUri()
 
 async function main() {
+  confirmDestructive('delete ALL complaints and feedback')
   if (!MONGO_URI) {
     console.error('MONGO_URI not set in environment. Aborting.')
     process.exit(1)

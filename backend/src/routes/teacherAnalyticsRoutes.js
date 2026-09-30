@@ -1,55 +1,83 @@
-const express = require('express');
-const router = express.Router();
-const Teacher = require('../models/Teacher');
-const Complaint = require('../models/Complaint');
+const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters')
+const mongoose = require('mongoose')
+const router = express.Router()
 
-router.get('/performance', async (req, res) => {
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
+const Teacher = require('../models/Teacher')
+const Complaint = require('../models/Complaint')
+const { inMemoryStore } = require('../utils/inMemoryStore')
+
+const isDbConnected = () => mongoose.connection.readyState === 1
+
+/**
+ * Average resolution time (hours) for a set of resolved complaints.
+ * Falls back to `updatedAt` when a complaint has no explicit resolution date.
+ */
+const avgResolutionHours = (complaints) => {
+  if (!complaints.length) return 0
+
+  const totalMs = complaints.reduce((acc, complaint) => {
+    const created = new Date(complaint.createdAt || 0).getTime()
+    const resolved = new Date(complaint.resolutionDate || complaint.updatedAt || 0).getTime()
+    if (!created || !resolved || resolved < created) return acc
+    return acc + (resolved - created)
+  }, 0)
+
+  return totalMs / complaints.length / (1000 * 60 * 60)
+}
+
+/**
+ * Simple rating: faster resolution + higher volume = better rating.
+ */
+const ratingFor = (resolvedCount, hours) => {
+  if (!resolvedCount) return 0
+  if (hours < 24) return 5
+  if (hours < 48) return 4
+  if (hours < 72) return 3
+  return 2
+}
+
+const buildPerformance = (teachers, resolvedComplaints) =>
+  teachers.map((teacher) => {
+    const mine = resolvedComplaints.filter(
+      (complaint) => complaint.assignedTeacherId === teacher.teacherId
+    )
+    const hours = avgResolutionHours(mine)
+
+    return {
+      teacherId: teacher.teacherId,
+      name: teacher.name,
+      department: teacher.department,
+      totalAssigned: (teacher.activeComplaints || 0) + (teacher.resolvedComplaints || 0),
+      resolved: teacher.resolvedComplaints || 0,
+      active: teacher.activeComplaints || 0,
+      avgResolutionTime: hours.toFixed(1),
+      rating: ratingFor(mine.length, hours)
+    }
+  })
+
+router.get('/performance', async (_req, res) => {
   try {
-    const teachers = await Teacher.find({});
-    
-    const performanceData = await Promise.all(teachers.map(async (teacher) => {
-      const resolvedComplaints = await Complaint.find({
-        assignedTeacherId: teacher.teacherId,
-        status: 'Resolved'
-      });
+    // Works with MongoDB when connected, and with the in-memory store when the
+    // backend runs in offline/demo mode (no MONGO_URI) — this endpoint used to
+    // throw a 500 in offline mode.
+    const teachers = isDbConnected()
+      ? await Teacher.find({}).lean()
+      : inMemoryStore.getTeachers()
 
-      let avgResolutionTime = 0;
-      if (resolvedComplaints.length > 0) {
-        const totalDuration = resolvedComplaints.reduce((acc, curr) => {
-          const created = new Date(curr.createdAt);
-          const resolved = new Date(curr.resolutionDate || curr.updatedAt);
-          return acc + (resolved - created);
-        }, 0);
-        avgResolutionTime = (totalDuration / resolvedComplaints.length) / (1000 * 60 * 60); // In hours
-      }
+    const resolvedComplaints = isDbConnected()
+      ? await Complaint.find({ status: 'Resolved' })
+          .select('assignedTeacherId createdAt resolutionDate updatedAt')
+          .lean()
+      : inMemoryStore.getComplaints({ status: 'Resolved' })
 
-      // Simple rating logic: 
-      // Faster resolution + higher volume = better rating
-      let rating = 0;
-      if (resolvedComplaints.length > 0) {
-        if (avgResolutionTime < 24) rating = 5;
-        else if (avgResolutionTime < 48) rating = 4;
-        else if (avgResolutionTime < 72) rating = 3;
-        else rating = 2;
-      }
-
-      return {
-        teacherId: teacher.teacherId,
-        name: teacher.name,
-        department: teacher.department,
-        totalAssigned: (teacher.activeComplaints || 0) + (teacher.resolvedComplaints || 0),
-        resolved: teacher.resolvedComplaints || 0,
-        active: teacher.activeComplaints || 0,
-        avgResolutionTime: avgResolutionTime.toFixed(1),
-        rating
-      };
-    }));
-
-    res.json(performanceData);
+    res.json(buildPerformance(teachers, resolvedComplaints))
   } catch (error) {
-    console.error('Teacher performance fetch failed:', error);
-    res.status(500).json({ message: 'Error fetching performance data' });
+    console.error('Teacher performance fetch failed:', error)
+    res.status(500).json({ message: 'Error fetching performance data' })
   }
-});
+})
 
-module.exports = router;
+module.exports = router

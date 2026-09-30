@@ -16,7 +16,8 @@ if (typeof window !== 'undefined') {
 
   const _origBeacon = navigator.sendBeacon?.bind(navigator)
   if (_origBeacon) {
-    // @ts-ignore patch beacon for same URL
+    // Patch sendBeacon so Google's telemetry pings resolve locally instead of
+    // hitting the network (the assignment satisfies lib.dom's signature).
     navigator.sendBeacon = (url: string | URL, data?: BodyInit | null) => {
       const s = typeof url === 'string' ? url : url.toString()
       if (s.includes('play.google.com/log')) return true

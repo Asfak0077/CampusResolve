@@ -46,7 +46,7 @@ export class ResponseGenerator {
     const cleaned = this.cleanForSpeech(voice)
     const words = cleaned.split(/\s+/).filter(Boolean)
     // If voice is already concise and not overly long, keep it
-    if (words.length >= 8 && words.length <= 38 && !/[•\-\*]\s+|\|/.test(voice)) return cleaned
+    if (words.length >= 8 && words.length <= 38 && !/[•\-*]\s+|\|/.test(voice)) return cleaned
     // If voice is too long or contains complex markdown, summarize from screen
     const screenClean = this.cleanForSpeech(screen)
     const sentences = screenClean.split(/[.!?]+/).map(s => s.trim()).filter(Boolean)

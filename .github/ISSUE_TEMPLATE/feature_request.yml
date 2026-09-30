@@ -1,0 +1,53 @@
+name: 💡 Feature request
+description: Suggest an improvement or a new capability
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the **problem** first — proposals that explain the need are much easier to evaluate than solutions in search of a problem.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      placeholder: As a department teacher I can't see complaints that are close to breaching their SLA, so they escalate without warning.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: Add an "At risk" filter and badge on the teacher dashboard that highlights complaints due within 24 hours.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: role
+    attributes:
+      label: Who benefits?
+      options:
+        - Students
+        - Teachers / faculty
+        - Administrators
+        - Developers / maintainers
+        - Everyone
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd be willing to work on this myself
+          required: false

@@ -1,6 +1,12 @@
 const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters')
+const { protect, authorize } = require('../middleware/authMiddleware')
+const { requireOwnership } = require('../middleware/accessControl')
 const mongoose = require('mongoose')
 const router = express.Router()
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 const Feedback = require('../models/Feedback')
 const Teacher = require('../models/Teacher')
 const Complaint = require('../models/Complaint')
@@ -10,7 +16,7 @@ const { sendFeedbackNotification, sendFeedbackAdminNotification } = require('../
 const { createNotification } = require('../utils/notificationHelper')
 
 // Submit Feedback (Student)
-router.post('/', async (req, res) => {
+router.post('/', protect, async (req, res) => {
     try {
         const {
             complaintId,
@@ -150,7 +156,7 @@ const maskAnonymousFeedback = (feedbacks) => {
 }
 
 // Get All Feedback (Admin)
-router.get('/', async (req, res) => {
+router.get('/', protect, authorize('admin'), async (req, res) => {
     if (mongoose.connection.readyState !== 1) {
         const list = inMemoryStore.getFeedback()
         return res.json(maskAnonymousFeedback(list))
@@ -165,7 +171,7 @@ router.get('/', async (req, res) => {
 })
 
 // Get Feedback by Student ID (Student sees their own submissions)
-router.get('/student/:studentId', async (req, res) => {
+router.get('/student/:studentId', protect, requireOwnership('student', 'studentId'), async (req, res) => {
     const cleanId = (req.params.studentId || '').toLowerCase().trim()
     if (mongoose.connection.readyState !== 1) {
         const all = inMemoryStore.getFeedback()
@@ -190,7 +196,7 @@ router.get('/student/:studentId', async (req, res) => {
 })
 
 // Get Feedback by Teacher ID
-router.get('/teacher/:teacherId', async (req, res) => {
+router.get('/teacher/:teacherId', protect, authorize('teacher', 'admin'), requireOwnership('teacher', 'teacherId'), async (req, res) => {
     if (mongoose.connection.readyState !== 1) {
         const list = inMemoryStore.getFeedback(req.params.teacherId)
         return res.json(maskAnonymousFeedback(list))
@@ -207,7 +213,7 @@ router.get('/teacher/:teacherId', async (req, res) => {
 
 
 // Get Teachers by Department
-router.get('/teachers/:department', async (req, res) => {
+router.get('/teachers/:department', protect, async (req, res) => {
     if (mongoose.connection.readyState !== 1) {
         const teachers = inMemoryStore.getTeachers().filter(t => t.department === req.params.department)
         return res.json(teachers)

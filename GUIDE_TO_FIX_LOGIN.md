@@ -1,6 +1,12 @@
 # 🔧 How to Fix Login & Google Sign-In
 
-The application is currently failing to log in because of two security settings in your external accounts (MongoDB and Google Cloud).
+> **This guide has moved.** The full, maintained version — including password-reset,
+> rate-limit, offline-mode and deployment issues — now lives in
+> **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**.
+> The two most common setup blockers are kept below for convenience.
+
+The application fails to log in when two external settings are wrong: MongoDB Atlas
+is blocking your IP, or Google Cloud doesn't recognise your origin.
 
 ## 1. Fix Database Connection (Backend Error)
 **Symptom:** "Network Error" or `ERR_CONNECTION_REFUSED` in console.  

@@ -1,4 +1,5 @@
 const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters')
 const crypto = require('crypto')
 const jwt = require('jsonwebtoken')
 const mongoose = require('mongoose')
@@ -38,8 +39,13 @@ const {
 
 const { orchestrateChat } = require('../utils/aiOrchestrator')
 const { joinExistingComplaint, findDuplicateComplaints } = require('../utils/duplicateDetectionEngine')
+const { getJwtSecret } = require('../utils/jwtSecret')
+const { aiLimiter } = require('../middleware/rateLimiters')
 
 const router = express.Router()
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 
 // ─── Intent Regular Expressions ───────────────────────────────────────────────
 const INTENTS = {
@@ -72,7 +78,7 @@ const extractAuthContext = async (req) => {
     try {
       const token = authHeader.split(' ')[1]
       if (token && token !== 'null' && token !== 'undefined') {
-        const secret = process.env.SECRET_KEY || process.env.JWT_SECRET || 'dev-secret'
+        const secret = getJwtSecret()
         const decoded = jwt.verify(token, secret)
         const lookupId = decoded.id || decoded.userId || decoded.sub || decoded.email
         const tokenRole = decoded.role || decoded.userRole || 'student'
@@ -159,7 +165,7 @@ const getEligibleResolvedComplaints = async (studentId, studentEmail) => {
 }
 
 // ─── POST /api/chatbot/message ────────────────────────────────────────────────
-router.post('/message', async (req, res) => {
+router.post('/message', aiLimiter, async (req, res) => {
   try {
     const {
       message,
@@ -654,7 +660,7 @@ router.get('/logs', protect, authorize('admin'), async (req, res) => {
 })
 
 // ─── POST /api/chatbot/enhance-text ──────────────────────────────────────────
-router.post('/enhance-text', async (req, res) => {
+router.post('/enhance-text', aiLimiter, async (req, res) => {
   try {
     const { text, mode } = req.body
     if (!text) return res.status(400).json({ error: 'Text is required' })
@@ -667,7 +673,7 @@ router.post('/enhance-text', async (req, res) => {
 })
 
 // ─── POST /api/chatbot/analyze-feedback ──────────────────────────────────────
-router.post('/analyze-feedback', async (req, res) => {
+router.post('/analyze-feedback', aiLimiter, async (req, res) => {
   try {
     const text = (req.body.text || req.body.feedbackText || '').trim()
     if (!text) {
@@ -683,7 +689,7 @@ router.post('/analyze-feedback', async (req, res) => {
 
 
 // ─── POST /api/chatbot/generate-bio ──────────────────────────────────────────
-router.post('/generate-bio', async (req, res) => {
+router.post('/generate-bio', aiLimiter, async (req, res) => {
   try {
     const { name, role, department } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
@@ -696,7 +702,7 @@ router.post('/generate-bio', async (req, res) => {
 })
 
 // ─── POST /api/chatbot/user-context ──────────────────────────────────────────
-router.post('/user-context', async (req, res) => {
+router.post('/user-context', aiLimiter, async (req, res) => {
   try {
     const { userId, userRole } = req.body
     if (!userId) return res.status(400).json({ error: 'userId required' })

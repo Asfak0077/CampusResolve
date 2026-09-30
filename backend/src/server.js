@@ -6,10 +6,8 @@ const express = require('express')
 const cors = require('cors')
 const morgan = require('morgan')
 const { connectDatabase } = require('./config/db')
-const authRoutes = require('./routes/authRoutesEnhanced')
-const complaintRoutes = require('./routes/complaintRoutesEnhanced')
-const teacherRoutes = require('./routes/teacherRoutes')
-const notificationRoutes = require('./routes/notificationRoutes')
+const { buildCorsOptions } = require('./middleware/corsOptions')
+const { registerApiErrorHandling } = require('./middleware/apiErrors')
 const { seedDemoData } = require('./utils/seedDemoData')
 const { seedAllowedEmails } = require('./utils/seedAllowedEmails')
 const { initSocketIO } = require('./utils/socketService')
@@ -18,7 +16,7 @@ const { initEscalationWorker } = require('./utils/escalationWorker')
 const app = express()
 const port = Number(process.env.PORT || 5001)
 
-app.use(cors())
+app.use(cors(buildCorsOptions()))
 app.use(
   require('helmet')({
     crossOriginOpenerPolicy: { policy: 'unsafe-none' },
@@ -51,24 +49,14 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'sdcfrs-backend' })
 })
 
-const profileRouter = require('./routes/profileRoutes')
-app.use('/api/auth', authRoutes)
-app.use('/api/profile', profileRouter)
-app.use('/api/users/profile', profileRouter)
-app.use('/api/users', profileRouter)
-app.use('/api/complaints', complaintRoutes)
-app.use('/api/teachers', teacherRoutes)
-app.use('/api/notifications', notificationRoutes)
-app.use('/api/upload', require('./routes/uploadRoutes'))
-app.use('/api/analytics/teachers', require('./routes/teacherAnalyticsRoutes'))
-app.use('/api/feedback', require('./routes/feedbackRoutes'))
-app.use('/api/chatbot', require('./routes/chatbotRoutes'))
-app.use('/api/ai-intelligence', require('./routes/aiIntelligenceRoutes'))
+// All API routes are mounted from a single shared table so that this server and
+// the Vercel serverless entry point (api/index.js) can never drift apart.
+const { mountRoutes } = require('./routes')
+mountRoutes(app)
 
-app.use((error, _req, res, _next) => {
-  console.error(error)
-  res.status(500).json({ message: 'Internal server error' })
-})
+// JSON 404s for unknown API routes + a single error handler (both shared with
+// the Vercel entry point so the two deployments behave the same way).
+registerApiErrorHandling(app)
 
 const { initializeAndMigrateComplaintIds } = require('./utils/complaintIdService')
 
