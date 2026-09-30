@@ -17,7 +17,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `backend/src/middleware/rateLimiters.js` — `authLimiter`, `aiLimiter`, `uploadLimiter`, `writeLimiter`.
 - `backend/scripts/security-smoke-test.mjs` — 22-check authorization regression test that runs against a live API.
 - Documentation set: `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/DEPLOYMENT.md`, `docs/TROUBLESHOOTING.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`.
-- GitHub setup: CI workflow (lint + build + security smoke test), issue forms and a pull-request template.
+- GitHub setup: CI workflow (lint, unit tests, build, boot the API and run the authorization smoke test), issue forms and a pull-request template.
+- `docs/TECH_DEBT.md` — deprioritised work with rationale and fix recipes (unreferenced modules, remaining advisories, lint warnings, serverless caveats).
 
 ### Security
 - **Fixed record-level authorization (IDOR).** Any signed-in student could read another student's complaints and feedback by changing the id in the URL, and any teacher could read another department's queue; complaint detail leaked any complaint to any authenticated caller. Ownership is now enforced per record.
@@ -43,6 +44,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - All 11 ESLint errors (`no-useless-escape`, `no-empty`, `no-unused-expressions`, `no-misleading-character-class`, `ban-ts-comment`) — `npm run lint` now exits 0.
 
 ### Changed
+- Dependency hygiene: removed the unused `xlsx` (which had an unfixable prototype-pollution advisory) and `joi` packages, applied safe updates and upgraded `nodemailer` to 10 — `npm audit` findings dropped from **40 to 8**, all of which now need deliberate major upgrades and are documented in `docs/TECH_DEBT.md`.
+- `emailService.js` no longer hardcodes a sender address; without `EMAIL_USER`/`EMAIL_PASS` it logs clearly and skips sending instead of silently using a baked-in account.
 - Vite build now splits vendor chunks; the main bundle dropped from 1.70 MB to 745 kB and libraries are cached separately.
 - `README.md` rewritten to describe the architecture the code actually implements, with accurate setup, environment-variable tables, demo accounts and API overview.
 - Repository hygiene: stopped tracking ~30 MB of development artifacts (Playwright dumps, a 17 MB `.crx` archive, sample uploads, a screenshot) and expanded `.gitignore`.

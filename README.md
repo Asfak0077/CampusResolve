@@ -16,7 +16,7 @@ Students raise issues, faculty act on them, admins see everything, and an AI ass
 [![Vercel](https://img.shields.io/badge/deploy-vercel-000000?logo=vercel&logoColor=white)](https://vercel.com)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4)](#-contributing)
 
-[Live demo](https://mini-project-frontend-five.vercel.app) · [Architecture](docs/ARCHITECTURE.md) · [API reference](docs/API.md) · [Deployment](docs/DEPLOYMENT.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
+[Live demo](https://mini-project-frontend-five.vercel.app) · [Architecture](docs/ARCHITECTURE.md) · [API reference](docs/API.md) · [Deployment](docs/DEPLOYMENT.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Tech debt](docs/TECH_DEBT.md)
 
 </div>
 
@@ -377,12 +377,16 @@ More in **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**.
 
 ## 🗺️ Roadmap
 
-- [ ] Route-level code splitting to shrink the initial JS bundle
-- [ ] Automated test suite (Jest + Supertest, React Testing Library) wired into CI
+Tracked in more detail — with rationale and suggested approaches — in **[docs/TECH_DEBT.md](docs/TECH_DEBT.md)**.
+
+- [ ] Object storage for uploads (serverless filesystems are ephemeral)
+- [ ] Move the SLA escalation worker to a scheduled job so it runs on Vercel
+- [ ] Route-level code splitting and a frontend test suite (Vitest + RTL)
+- [ ] Reduce the 372 `no-explicit-any` lint warnings, directory by directory
+- [ ] Upgrade Vite 5 → 8 and react-router 6 → 7 (remaining `npm audit` items)
+- [ ] Delete the ~36 unreferenced modules listed in the tech-debt backlog
 - [ ] Typed shared API contracts between frontend and backend
-- [ ] Configurable SLA policies per category/department
-- [ ] CSV/PDF exports for admin analytics
-- [ ] Accessibility pass (keyboard navigation + screen-reader labels) and dark-mode contrast audit
+- [ ] Accessibility pass (keyboard navigation, screen-reader labels, contrast)
 
 ---
 
