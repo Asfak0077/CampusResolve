@@ -1,5 +1,11 @@
 # Security Policy
 
+> 🔴 **If you are the maintainer: this repository has open secret-scanning alerts
+> for a leaked MongoDB Atlas password and an NVIDIA API key.**
+> Rotate them first — see [Open secret-scanning alerts](#-open-secret-scanning-alerts--rotate-these-credentials).
+> The leaked files are gone from this branch, but the credentials remain in git
+> history and are public. Rotation is the only real fix.
+
 ## Reporting a vulnerability
 
 **Please do not report security issues through public GitHub issues.**
@@ -70,22 +76,66 @@ This project is developed on `main`; security fixes land there and are not backp
 | Secrets in the environment only | `.gitignore` + `backend/src/config/env.js` |
 | Automated authorization regression test | `backend/scripts/security-smoke-test.mjs` |
 
-## ⚠️ Credential hygiene — action required for existing deployments
+## 🔴 Open secret-scanning alerts — rotate these credentials
 
-This repository is **public**, and earlier commits contained secrets that must now be treated as compromised. Removing a file does not remove it from Git history, so **rotate, don't just delete**:
+GitHub's secret scanning has flagged **live credentials committed to this public
+repository**. The files have been removed on the current branch, but *the secrets
+are still in the Git history and must be treated as compromised.* Deleting a file
+does **not** un-leak a secret — **rotation is the only real fix.**
 
-| Credential | Where it leaked | Action |
-| ---------- | --------------- | ------ |
-| MongoDB Atlas user `asfakrahman43_db_user` (database password, two variants) | hardcoded in 8 backend scripts | **Rotate the database user password in Atlas → Database Access.** Also audit which IPs are allowed and who has cluster access |
-| NVIDIA NIM API key (`nvapi-…`) | `backend/src/services/ragService.js` fallback | **Revoke and reissue** at <https://build.nvidia.com>, update `NVIDIA_API_KEY` in your environment |
+| Alert | Secret | Originally in | Status in this branch | Required action |
+| :---: | ------ | ------------- | --------------------- | --------------- |
+| [#1](../../security/secret-scanning/1) | MongoDB Atlas URI (`asfakrahman43_db_user` / `asfakrahman`) | `backend/test-db.js` | file deleted | **Rotate the password in Atlas → Database Access** |
+| [#2](../../security/secret-scanning/2) | MongoDB Atlas URI (`asfakrahman43_db_user` / `ogR4BInjAyhGnzpz`) | `backend/update_admin_password.js` | script rewritten to read `MONGO_URI` | **Rotate the password in Atlas** |
+| [#3](../../security/secret-scanning/3) | MongoDB Atlas URI (`asfakrahman43_db_user` / `asfak2006`) | `backend/update_teachers.js` | file deleted | **Rotate the password in Atlas** |
+| (scan) | NVIDIA NIM key `nvapi-yhk…` | `backend/src/services/ragService.js` | hardcoded fallback removed | **Revoke + reissue** at <https://build.nvidia.com> |
 
-Other steps worth taking:
+Because all three Atlas URIs name the **same database user**, rotating that one
+password invalidates every leaked variant at once.
 
-1. Rotate `SECRET_KEY` so all previously issued JWTs become invalid.
-2. Review the allowlist (`allowedemails`) and remove addresses that should not sign in.
-3. Change every demo/seed password (`password123`, `teach123`) on any live instance.
-4. Check Atlas logs for unexpected connections from unknown IPs.
-5. Consider [BFG](https://rtyley.github.io/bfg-repo-cleaner/) or `git filter-repo` if you need the history itself cleaned — and force-push only after coordinating with everyone who has a clone.
+### Rotate now — 10 minute checklist
+
+1. **MongoDB Atlas** → *Database Access* → edit `asfakrahman43_db_user` → **Edit Password** → generate a new one. Update `MONGO_URI` in your hosting environment (`backend/.env` locally) and redeploy. The old password stops working immediately.
+2. **Atlas** → *Network Access* → remove `0.0.0.0/0` if present and allow only your host's IPs.
+3. **Atlas** → *Database Access* → confirm the user has `readWrite` on the app database only, not `atlasAdmin`.
+4. **NVIDIA** → revoke the old key, issue a new one, set `NVIDIA_API_KEY` in the environment (never in code).
+5. **New `SECRET_KEY`** — invalidates every JWT issued so far:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+6. Change every live demo/seed password (`password123`, `teach123`).
+7. **Then** mark the alerts as *Revoked* in **Security → Secret scanning**, which resolves them and clears the noise.
+
+### Cleaning the history (optional, after rotating)
+
+Rotation is sufficient to make the leak harmless — history rewriting is only worth
+it if you want the strings gone from `git log`. It rewrites commit hashes and
+requires a coordinated force-push:
+
+```bash
+# pip install git-filter-repo
+git filter-repo --replace-text <(cat <<'EOF'
+asfakrahman43_db_user:asfak2006==>REDACTED
+asfakrahman43_db_user:ogR4BInjAyhGnzpz==>REDACTED
+asfakrahman43_db_user:asfakrahman==>REDACTED
+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==>REDACTED
+EOF
+)
+git push --force --all && git push --force --tags
+```
+
+> Everyone with a clone must delete it and re-clone afterwards, and any open PR
+> will need rebasing. Do this **after** the credentials are rotated, never instead
+> of it — crawlers scrape leaked secrets within minutes.
+
+### Preventing the next one
+
+- Enable **push protection** (Security → Secret scanning) so a commit containing a
+  recognised secret is blocked before it reaches GitHub.
+- Keep every credential in `.env` (git-ignored) or host environment variables.
+- The maintenance scripts in `backend/` now require `MONGO_URI` from the
+  environment and fail fast with a clear message when it is missing — use them
+  rather than pasting a connection string into a file.
 
 ## Hardening checklist for deployments
 
