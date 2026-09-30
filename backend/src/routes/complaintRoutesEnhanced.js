@@ -1,4 +1,5 @@
 const express = require('express')
+const { canAccessComplaint, requireOwnership } = require('../middleware/accessControl')
 const { apiLimiter } = require('../middleware/rateLimiters')
 const mongoose = require('mongoose')
 const Complaint = require('../models/Complaint')
@@ -348,7 +349,7 @@ router.post('/create', protect, async (req, res) => {
 })
 
 // Get student's complaints - supports authenticated user (preferred) or param fallback
-router.get('/student/:studentId', protect, async (req, res) => {
+router.get('/student/:studentId', protect, requireOwnership('student', 'studentId'), async (req, res) => {
   try {
     const paramStudentId = req.params.studentId
     const { status, priority } = req.query
@@ -403,6 +404,9 @@ router.get('/details/:complaintId', protect, async (req, res) => {
     if (mongoose.connection.readyState !== 1) {
       const complaint = inMemoryStore.findComplaintById(complaintId)
       if (!complaint) return res.status(404).json({ message: 'Complaint not found' })
+      if (!canAccessComplaint(req, complaint)) {
+        return res.status(403).json({ message: 'You are not allowed to access this complaint' })
+      }
       return res.json(complaint)
     }
 
@@ -412,11 +416,16 @@ router.get('/details/:complaintId', protect, async (req, res) => {
       return res.status(404).json({ message: 'Complaint not found' })
     }
 
+    // Students may only read their own complaints; teachers only their queue.
+    if (!canAccessComplaint(req, complaint)) {
+      return res.status(403).json({ message: 'You are not allowed to access this complaint' })
+    }
+
     res.json(complaint)
   } catch (error) {
     console.error(error)
     const complaint = inMemoryStore.findComplaintById(req.params.complaintId)
-    if (complaint) return res.json(complaint)
+    if (complaint && canAccessComplaint(req, complaint)) return res.json(complaint)
     res.status(500).json({ message: 'Error fetching complaint' })
   }
 })
@@ -874,7 +883,7 @@ router.get('/teacher/:teacherId/activity-logs', protect, authorize('teacher', 'a
 // ============ TEACHER COMPLAINT ROUTES ============
 
 // Get teacher's assigned complaints (by assignedTeacherId) + department pool
-router.get('/teacher/:teacherId', protect, authorize('teacher', 'admin'), async (req, res) => {
+router.get('/teacher/:teacherId', protect, authorize('teacher', 'admin'), requireOwnership('teacher', 'teacherId'), async (req, res) => {
   try {
     const { teacherId } = req.params
     const { status } = req.query

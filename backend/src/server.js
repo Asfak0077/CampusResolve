@@ -6,6 +6,8 @@ const express = require('express')
 const cors = require('cors')
 const morgan = require('morgan')
 const { connectDatabase } = require('./config/db')
+const { buildCorsOptions } = require('./middleware/corsOptions')
+const { registerApiErrorHandling } = require('./middleware/apiErrors')
 const { seedDemoData } = require('./utils/seedDemoData')
 const { seedAllowedEmails } = require('./utils/seedAllowedEmails')
 const { initSocketIO } = require('./utils/socketService')
@@ -14,7 +16,7 @@ const { initEscalationWorker } = require('./utils/escalationWorker')
 const app = express()
 const port = Number(process.env.PORT || 5001)
 
-app.use(cors())
+app.use(cors(buildCorsOptions()))
 app.use(
   require('helmet')({
     crossOriginOpenerPolicy: { policy: 'unsafe-none' },
@@ -52,10 +54,9 @@ app.get('/api/health', (_req, res) => {
 const { mountRoutes } = require('./routes')
 mountRoutes(app)
 
-app.use((error, _req, res, _next) => {
-  console.error(error)
-  res.status(500).json({ message: 'Internal server error' })
-})
+// JSON 404s for unknown API routes + a single error handler (both shared with
+// the Vercel entry point so the two deployments behave the same way).
+registerApiErrorHandling(app)
 
 const { initializeAndMigrateComplaintIds } = require('./utils/complaintIdService')
 

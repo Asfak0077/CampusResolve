@@ -1,4 +1,5 @@
 const fs = require('fs')
+const { randomToken } = require('./secureRandom')
 const path = require('path')
 
 // ── Persistent storage file path ──
@@ -246,7 +247,7 @@ class InMemoryStore {
   }
 
   createTeacher(data) {
-    const teacherId = data.teacherId || `T-${Math.floor(100 + Math.random() * 900)}`
+    const teacherId = data.teacherId || `T-${randomToken(3).toUpperCase()}`
     const newTeacher = {
       _id: `64f1t${Date.now().toString(16)}`,
       id: teacherId,

@@ -15,7 +15,7 @@ const DEMO_EMAILS = [
   'admin@campusresolve.edu'
 ]
 
-const getAllowlist = () => {
+const getAllowedEmails = () => {
   const fromEnv = (process.env.ALLOWED_EMAILS || '')
     .split(',')
     .map((email) => email.trim().toLowerCase())
@@ -29,7 +29,7 @@ const getAllowlist = () => {
 const seedAllowedEmails = async () => {
   if (require('mongoose').connection.readyState !== 1) return
 
-  const emails = getAllowlist()
+  const emails = getAllowedEmails()
   if (!emails.length) return
 
   console.log('--- Seeding Allowed Emails ---')
@@ -48,4 +48,4 @@ const seedAllowedEmails = async () => {
   console.log('--- Allowed Emails Seeded ---\n')
 }
 
-module.exports = { seedAllowedEmails, getAllowlist }
+module.exports = { seedAllowedEmails, getAllowedEmails, getAllowlist: getAllowedEmails }

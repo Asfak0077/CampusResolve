@@ -60,6 +60,9 @@ jobs:
       - name: Syntax-check every backend module
         run: npm --workspace backend run lint
 
+      - name: Unit tests
+        run: npm --workspace backend run test
+
       - name: Boot the API and run the authorization smoke test
         env:
           PORT: 5001

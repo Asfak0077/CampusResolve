@@ -23,17 +23,21 @@ const DEMO = {
 let passed = 0
 let failed = 0
 
-const request = async (path, { method = 'GET', token, body } = {}) => {
+const request = async (path, { method = 'GET', token, body, origin } = {}) => {
   const response = await fetch(`${API}${path}`, {
     method,
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(origin ? { Origin: origin } : {})
     },
     body: body ? JSON.stringify(body) : undefined
   })
   return response.status
 }
+
+/** Raw fetch for checks that need headers or an invalid JSON body. */
+const raw = (path, options = {}) => fetch(`${API}${path}`, options)
 
 const check = (name, expected, actual) => {
   const ok = Array.isArray(expected) ? expected.includes(actual) : actual === expected
@@ -103,6 +107,13 @@ const main = async () => {
     check('cannot create teachers', 403, await request('/teachers', {
       method: 'POST', token: studentToken, body: { name: 'x', department: 'CSE' }
     }))
+
+    console.log('\n── Record-level authorization (IDOR) ──')
+    check('cannot read another student\'s complaints', 403, await request('/complaints/student/CR99XX999', { token: studentToken }))
+    check('cannot read another student\'s feedback', 403, await request('/feedback/student/CR99XX999', { token: studentToken }))
+    check('cannot read another teacher\'s queue', 403, await request('/complaints/teacher/TCH-IT-001', { token: studentToken }))
+    check('can read own complaints', [200], await request('/complaints/student/CR21CS001', { token: studentToken }))
+    check('can read own feedback', [200], await request('/feedback/student/CR21CS001', { token: studentToken }))
   }
 
   const adminToken = await login('/auth/student-login', DEMO.admin)
@@ -122,7 +133,30 @@ const main = async () => {
       method: 'PUT', token: teacherToken, body: { newStatus: 'Resolved' }
     }))
     check('cannot read complaint dump', 403, await request('/complaints/admin/all-complaints', { token: teacherToken }))
+    check('cannot read another department\'s queue', 403, await request('/complaints/teacher/TCH-IT-001', { token: teacherToken }))
   }
+
+  console.log('\n── Platform hardening ──')
+  const unknown = await request('/definitely-not-a-route')
+  check('unknown API route returns JSON 404', 404, unknown)
+
+  const malformed = await raw('/auth/student-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{ not json'
+  })
+  check('malformed JSON body rejected with 400', 400, malformed.status)
+
+  const evilOrigin = await raw('/health', { headers: { Origin: 'https://evil.example.com' } })
+  check('untrusted origin gets no CORS grant',
+    '', evilOrigin.headers.get('access-control-allow-origin') || '')
+
+  const localOrigin = await raw('/health', { headers: { Origin: 'http://localhost:5173' } })
+  check('known dev origin is allowed',
+    'http://localhost:5173', localOrigin.headers.get('access-control-allow-origin') || '')
+
+  const upload = await raw('/upload/multiple', { method: 'POST', token: studentToken })
+  check('upload without a file returns 4xx', [400, 401], upload.status)
 
   console.log(`\nRESULT: ${passed} passed, ${failed} failed\n`)
   process.exit(failed ? 1 : 0)

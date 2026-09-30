@@ -7,6 +7,7 @@ const { protect } = require('../middleware/authMiddleware')
 const Student = require('../models/Student')
 const Teacher = require('../models/Teacher')
 const { inMemoryStore } = require('../utils/inMemoryStore')
+const { uniqueFileSuffix } = require('../utils/secureRandom')
 
 const router = express.Router()
 
@@ -26,7 +27,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase()
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
+    const uniqueSuffix = uniqueFileSuffix()
     cb(null, `${uniqueSuffix}${ext}`)
   }
 })

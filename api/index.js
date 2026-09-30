@@ -37,7 +37,7 @@ async function getExpressApp() {
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' }
   }));
-  expressApp.use(cors());
+  expressApp.use(cors(require(path.join(__dirname, '..', 'backend', 'src', 'middleware', 'corsOptions')).buildCorsOptions()));
   expressApp.use(mongoSanitize());
   expressApp.use(express.json({ limit: '5mb' }));
   expressApp.use(express.urlencoded({ extended: true, limit: '5mb' }));
@@ -50,11 +50,8 @@ async function getExpressApp() {
   // Mount all routes from the shared table (keeps parity with backend/src/server.js)
   require(path.join(__dirname, '..', 'backend', 'src', 'routes')).mountRoutes(expressApp)
 
-  // Error handler
-  expressApp.use((error, _req, res, _next) => {
-    console.error('Serverless error:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  });
+  // Shared 404 + error handling (identical to the Express server)
+  require(path.join(__dirname, '..', 'backend', 'src', 'middleware', 'apiErrors')).registerApiErrorHandling(expressApp);
 
   return expressApp;
 }

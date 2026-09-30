@@ -1,72 +1,89 @@
 const express = require('express')
-const { apiLimiter } = require('../middleware/rateLimiters');
-const { protect } = require('../middleware/authMiddleware');
-const router = express.Router();
+const multer = require('multer')
+const path = require('path')
+const fs = require('fs')
+const { protect } = require('../middleware/authMiddleware')
+const { apiLimiter, uploadLimiter } = require('../middleware/rateLimiters')
+const { uniqueFileSuffix } = require('../utils/secureRandom')
+
+const router = express.Router()
 
 // Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
 router.use(apiLimiter)
-const multer = require('multer');
-const path = require('path');
-const { uploadLimiter } = require('../middleware/rateLimiters');
-const fs = require('fs');
 
-// Ensure uploads directory exists
-const uploadDir = 'uploads/';
+// Ensure the uploads directory exists
+const uploadDir = path.join(__dirname, '../../uploads')
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
+  fs.mkdirSync(uploadDir, { recursive: true })
 }
 
-// Storage configuration
+/**
+ * Allowed upload types.
+ *
+ * The extension written to disk is derived from the *validated* MIME type, never
+ * from the client-supplied filename. Trusting the original name would let a
+ * caller store `payload.html` or `payload.svg`, which are served from /uploads
+ * and could be rendered as active content in a victim's browser.
+ */
+const ALLOWED_TYPES = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'application/pdf': '.pdf'
+}
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
+const MAX_FILES = 5
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const safeExt = ALLOWED_TYPES[file.mimetype] || '.bin'
+    cb(null, `files-${uniqueFileSuffix()}${safeExt}`)
   }
-});
+})
 
-// File filter
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|pdf/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
-
-  if (extname && mimetype) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Only images (jpg, jpeg, png) and PDFs are allowed'));
-  }
-};
+const fileFilter = (_req, file, cb) => {
+  if (ALLOWED_TYPES[file.mimetype]) return cb(null, true)
+  cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', file.fieldname))
+}
 
 const upload = multer({
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: fileFilter
-});
+  storage,
+  limits: { fileSize: MAX_FILE_SIZE, files: MAX_FILES },
+  fileFilter
+})
 
-// Multi-file upload route
-router.post('/multiple', protect, uploadLimiter, upload.array('files', 5), (req, res) => {
-  try {
-    const files = req.files.map(file => ({
-      filename: file.originalname,
-      url: `/uploads/${file.filename}`,
-      size: file.size,
-      mimetype: file.mimetype
-    }));
+/** Translate multer errors into clear 4xx responses instead of a generic 500. */
+const handleUpload = (req, res, next) =>
+  upload.array('files', MAX_FILES)(req, res, (err) => {
+    if (!err) return next()
 
-    res.json({
-      success: true,
-      message: 'Files uploaded successfully',
-      files
-    });
-  } catch (error) {
-    res.status(500).json({
+    const messages = {
+      LIMIT_FILE_SIZE: `Each file must be ${MAX_FILE_SIZE / (1024 * 1024)} MB or smaller.`,
+      LIMIT_FILE_COUNT: `You can upload at most ${MAX_FILES} files at once.`,
+      LIMIT_UNEXPECTED_FILE: 'Unsupported file type. Allowed: JPG, PNG, WebP and PDF.'
+    }
+
+    return res.status(400).json({
       success: false,
-      message: error.message || 'File upload failed'
-    });
-  }
-});
+      message: messages[err.code] || err.message || 'File upload failed'
+    })
+  })
 
-module.exports = router;
+router.post('/multiple', protect, uploadLimiter, handleUpload, (req, res) => {
+  const files = (req.files || []).map((file) => ({
+    filename: file.originalname,
+    url: `/uploads/${file.filename}`,
+    size: file.size,
+    mimetype: file.mimetype
+  }))
+
+  res.json({
+    success: true,
+    message: 'Files uploaded successfully',
+    files
+  })
+})
+
+module.exports = router

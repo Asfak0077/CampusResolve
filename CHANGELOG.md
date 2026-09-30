@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- `backend/src/middleware/accessControl.js` — record-level authorization helpers (`canAccessComplaint`, `canAccessStudent`, `canAccessTeacher`, `requireOwnership`).
+- `backend/src/middleware/corsOptions.js` — origin allowlist that replaces the wildcard CORS policy.
+- `backend/src/middleware/apiErrors.js` — shared JSON 404 + error mapping (400/409/413 for client mistakes).
+- `backend/src/utils/secureRandom.js` — CSPRNG-backed OTP, token, id and filename helpers.
+- `backend/tests/unit.test.cjs` — 22 unit tests covering JWT secret policy, secure randomness, access control, CORS decisions and complaint-id formatting; wired into `npm test` and CI.
 - `backend/src/routes/index.js` — single route-mount table shared by the Express server and the Vercel serverless entry.
 - `backend/src/utils/jwtSecret.js` — central JWT secret resolution that fails fast in production instead of falling back to a public default.
 - `backend/src/config/env.js` — `requireEnv`, `requireMongoUri`, `isProduction` and `confirmDestructive` helpers for scripts.
@@ -15,6 +20,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - GitHub setup: CI workflow (lint + build + security smoke test), issue forms and a pull-request template.
 
 ### Security
+- **Fixed record-level authorization (IDOR).** Any signed-in student could read another student's complaints and feedback by changing the id in the URL, and any teacher could read another department's queue; complaint detail leaked any complaint to any authenticated caller. Ownership is now enforced per record.
+- **Replaced `Math.random()` with a CSPRNG for password-reset OTPs** — predictable OTPs allowed account takeover. Student-id and upload-filename generation moved to `crypto` as well.
+- **Locked down CORS.** The API previously answered with `Access-Control-Allow-Origin: *`, letting any website call it from a victim's browser. Only `FRONTEND_URL`, `ALLOWED_ORIGINS`, localhost (dev) and `*.vercel.app` previews are accepted.
+- **Upload hardening.** The stored file extension is now derived from the validated MIME type instead of the client-supplied filename, multer errors return 400 instead of 500, and size/count limits are explicit.
+- Removed hardcoded personal email addresses from the Google sign-in allowlist (now `ALLOWED_EMAILS`).
+- Deleted `backend/src/utils/resetPasswordManual.js`, a dead script that reset a personal account's password, plus the unused `services/ragService.js` and `utils/projectKnowledgeManager.js`.
 - **Enforced authentication and authorization across the API.** Admin complaint dumps, analytics, activity logs, complaint assignment/deletion, teacher management and feedback exports now require the `admin` role; teacher endpoints require `teacher`/`admin`; complaint details, student lists, feedback submission, notifications and uploads require a session. Previously these were callable anonymously — an unauthenticated request could mark a complaint as resolved and dump every complaint's student contact details.
 - Removed a hardcoded NVIDIA API key fallback from `backend/src/services/ragService.js`.
 - Removed hardcoded MongoDB Atlas credentials from 8 maintenance scripts; all of them now read `MONGO_URI` from the environment.

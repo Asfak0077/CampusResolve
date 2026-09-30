@@ -1,4 +1,5 @@
 const express = require('express')
+const { getAllowedEmails } = require('../utils/seedAllowedEmails')
 const { apiLimiter } = require('../middleware/rateLimiters')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
@@ -13,6 +14,7 @@ const { supabase } = require('../utils/supabaseClient')
 const { inMemoryStore } = require('../utils/inMemoryStore')
 const { getJwtSecret } = require('../utils/jwtSecret')
 const { authLimiter } = require('../middleware/rateLimiters')
+const { generateOtp, randomStudentId } = require('../utils/secureRandom')
 
 const router = express.Router()
 
@@ -680,7 +682,7 @@ router.post('/forgot-password/student', authLimiter, async (req, res) => {
     }
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    const otp = generateOtp()
 
     // Hash OTP for storage
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex')
@@ -762,7 +764,7 @@ router.post('/forgot-password/teacher', authLimiter, async (req, res) => {
     }
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    const otp = generateOtp()
 
     // Hash OTP for storage
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex')
@@ -1127,8 +1129,11 @@ router.post('/verify-google-user', async (req, res) => {
       if (allowDoc || student) isAllowed = true
     } else {
       student = inMemoryStore.findStudentByEmail(normalizedEmail)
-      const devAllowed = ['student@campusresolve.edu', 'asf28146@gmail.com', 'eswaraprasath115@gmail.com']
-      if (student || devAllowed.includes(normalizedEmail)) isAllowed = true
+      // Offline/demo mode has no database allowlist, so fall back to the
+      // ALLOWED_EMAILS environment variable (see src/config/env.js and
+      // src/utils/seedAllowedEmails.js). Personal addresses must not be
+      // hardcoded here — this repository is public.
+      if (student || getAllowedEmails().includes(normalizedEmail)) isAllowed = true
     }
 
     if (!isAllowed && !student) {
@@ -1147,7 +1152,7 @@ router.post('/verify-google-user', async (req, res) => {
         googleId: googleId || '',
         profilePicture: picture || '',
         role: 'student',
-        studentId: 'CR' + Math.floor(100000 + Math.random() * 900000),
+        studentId: randomStudentId(),
         department: 'General',
         isActive: true,
         isPasswordSet: false

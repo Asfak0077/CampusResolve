@@ -115,7 +115,7 @@ flowchart TB
 
 - **Two entry points, one route table.** `backend/src/server.js` (long-running Express, used locally and on Render/PM2) and `api/index.js` (Vercel serverless) both mount routes from `backend/src/routes/index.js`, so they can't drift apart.
 - **Optional dependencies degrade gracefully.** No Supabase? Notifications skip the mirror. No MongoDB? The in-memory store takes over. Missing AI keys? The assistant falls back to rule-based replies.
-- **Security by default.** Helmet, CORS, `express-mongo-sanitize`, rate limiting, bcrypt password hashes, JWT auth with a mandatory secret in production.
+- **Security by default.** Helmet, an origin allowlist for CORS, `express-mongo-sanitize`, rate limiting, bcrypt password hashes, JWT auth with a mandatory secret in production, and record-level authorization so students and teachers only ever see their own data.
 
 Deeper dive: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**
 
@@ -258,7 +258,8 @@ From the repository root (npm workspaces):
 | `npm run dev:frontend` | Vite dev server on `:5173` |
 | `npm run build:frontend` | Type-check (`tsc`) + production build to `frontend/dist` |
 | `npm run lint` | Frontend ESLint **and** a backend syntax check (both must pass) |
-| `npm run test:security` | 22-check authorization regression test — run it with the API up |
+| `npm test` | Backend unit tests (22 tests, no database required) |
+| `npm run test:security` | 33-check authorization + hardening regression test — run it with the API up |
 | `npm run vercel-build` | Build command used by Vercel |
 
 Backend maintenance scripts (`node backend/<script>.js`, all read `MONGO_URI` from the environment):

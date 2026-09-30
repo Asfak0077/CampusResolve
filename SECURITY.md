@@ -55,6 +55,12 @@ This project is developed on `main`; security fixes land there and are not backp
 | ------- | ----- |
 | JWT auth with a mandatory secret in production | `backend/src/utils/jwtSecret.js`, `backend/src/middleware/authMiddleware.js` |
 | Role gates (`student` / `teacher` / `admin`) | `authorize(...)` on each protected route |
+| Record-level authorization (no IDOR) | `backend/src/middleware/accessControl.js` — students read only their own complaints/feedback, teachers only their own queue |
+| CORS allowlist (no wildcard) | `backend/src/middleware/corsOptions.js` — `FRONTEND_URL`, `ALLOWED_ORIGINS`, localhost in dev, `*.vercel.app` previews |
+| CSPRNG for OTPs and generated ids | `backend/src/utils/secureRandom.js` (replaced `Math.random()`) |
+| Upload validation by MIME type | `backend/src/routes/uploadRoutes.js` — stored extension derived from the validated MIME type, 5 MB × 5 files |
+| Consistent JSON errors, no stack leakage | `backend/src/middleware/apiErrors.js` |
+| Deleted dead code that leaked data | removed `resetPasswordManual.js` (hardcoded personal address) and unused RAG/project modules |
 | Password hashing | bcrypt (`bcryptjs`), 10 rounds |
 | Login/OTP brute-force protection | `backend/src/middleware/rateLimiters.js` (`authLimiter`) |
 | Rate limits on AI endpoints and uploads | `authLimiter`, `aiLimiter`, `uploadLimiter` |

@@ -1,6 +1,7 @@
 const express = require('express')
 const { apiLimiter } = require('../middleware/rateLimiters')
 const { protect, authorize } = require('../middleware/authMiddleware')
+const { requireOwnership } = require('../middleware/accessControl')
 const mongoose = require('mongoose')
 const router = express.Router()
 
@@ -170,7 +171,7 @@ router.get('/', protect, authorize('admin'), async (req, res) => {
 })
 
 // Get Feedback by Student ID (Student sees their own submissions)
-router.get('/student/:studentId', protect, async (req, res) => {
+router.get('/student/:studentId', protect, requireOwnership('student', 'studentId'), async (req, res) => {
     const cleanId = (req.params.studentId || '').toLowerCase().trim()
     if (mongoose.connection.readyState !== 1) {
         const all = inMemoryStore.getFeedback()
@@ -195,7 +196,7 @@ router.get('/student/:studentId', protect, async (req, res) => {
 })
 
 // Get Feedback by Teacher ID
-router.get('/teacher/:teacherId', protect, authorize('teacher', 'admin'), async (req, res) => {
+router.get('/teacher/:teacherId', protect, authorize('teacher', 'admin'), requireOwnership('teacher', 'teacherId'), async (req, res) => {
     if (mongoose.connection.readyState !== 1) {
         const list = inMemoryStore.getFeedback(req.params.teacherId)
         return res.json(maskAnonymousFeedback(list))

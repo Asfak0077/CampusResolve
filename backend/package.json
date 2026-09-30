@@ -8,7 +8,9 @@
     "start": "node src/server.js",
     "build": "echo \"Backend build not required\"",
     "build:frontend": "echo \"Backend build not required\"",
-    "lint": "node scripts/syntax-check.mjs"
+    "lint": "node scripts/syntax-check.mjs",
+    "test": "node --test \"tests/**/*.test.cjs\"",
+    "test:security": "node scripts/security-smoke-test.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

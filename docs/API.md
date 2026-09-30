@@ -7,7 +7,9 @@
 
 Legend: 🔓 public · 🔐 any signed-in user · 👨‍🏫 teacher or admin · 🛡️ admin only
 
-Interactive check of these rules: `node backend/scripts/security-smoke-test.mjs`
+Interactive check of these rules: `npm run test:security` (33 assertions).
+Unknown `/api/*` routes return a JSON 404, and errors always come back as
+`{ "message": ... }` — never as an HTML error page.
 
 ---
 
@@ -66,9 +68,9 @@ curl -X POST http://localhost:5001/api/auth/student-login \
 | ------ | ---- | ------ | ----------- |
 | `POST` | `/create` | 🔐 | Create a complaint (canonical endpoint) |
 | `POST` | `/predict-resolution` | 🔐 | AI prediction of resolution time / priority |
-| `GET` | `/student/:studentId` | 🔐 | A student's complaint list |
-| `GET` | `/details/:complaintId` | 🔐 | Full complaint with timeline and AI analysis |
-| `GET` | `/teacher/:teacherId` | 👨‍🏫 | Complaints assigned to a teacher |
+| `GET` | `/student/:studentId` | 🔐 *(own records)* | A student's complaint list — students may only read their own; admins may read any |
+| `GET` | `/details/:complaintId` | 🔐 *(owner / assigned teacher)* | Full complaint with timeline and AI analysis |
+| `GET` | `/teacher/:teacherId` | 👨‍🏫 *(own queue)* | Complaints assigned to a teacher |
 | `GET` | `/teacher/:teacherId/activity-logs` | 👨‍🏫 | Teacher action history |
 | `PUT` | `/:complaintId/update-status` | 👨‍🏫 | Change status (`Assigned`, `In Progress`, `Resolved`, …) with notes |
 | `PUT` | `/:complaintId/feedback` | 🔐 | Attach feedback data to a complaint |
@@ -109,8 +111,8 @@ curl -X PUT http://localhost:5001/api/complaints/CR-001/update-status \
 | ------ | ---- | ------ | ----------- |
 | `POST` | `/` | 🔐 | Submit feedback for a resolved complaint |
 | `GET` | `/` | 🛡️ | All feedback (analytics page) |
-| `GET` | `/student/:studentId` | 🔐 | Feedback written by a student |
-| `GET` | `/teacher/:teacherId` | 👨‍🏫 | Feedback received by a teacher |
+| `GET` | `/student/:studentId` | 🔐 *(own records)* | Feedback written by a student |
+| `GET` | `/teacher/:teacherId` | 👨‍🏫 *(own queue)* | Feedback received by a teacher |
 | `GET` | `/teachers/:department` | 🔐 | Feedback aggregated for a department |
 
 ---
@@ -182,7 +184,7 @@ curl -X PUT http://localhost:5001/api/complaints/CR-001/update-status \
 
 | Method | Path | Access | Description |
 | ------ | ---- | ------ | ----------- |
-| `POST` | `/multiple` | 🔐 | `multipart/form-data` field `files`; returns `/uploads/<filename>` URLs (40 uploads / 15 min) |
+| `POST` | `/multiple` | 🔐 | `multipart/form-data` field `files` (max 5 files, 5 MB each; JPG/PNG/WebP/PDF only). Returns `/uploads/<filename>` URLs (40 uploads / 15 min) |
 
 Static files are served by the Express server at `/uploads/<filename>` (and proxied by Vite in development).
 
@@ -200,5 +202,7 @@ Static files are served by the Express server at `/uploads/<filename>` (and prox
 | `401` | No token, expired token, or the account no longer exists |
 | `403` | Authenticated, but the role may not perform this action |
 | `404` | Resource not found |
+| `409` | Duplicate record (e.g. that email already exists) |
+| `413` | Request body larger than the configured limit |
 | `429` | Rate limit exceeded — back off and retry |
 | `500` | Server error (details are logged server-side, never returned) |
