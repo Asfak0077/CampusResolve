@@ -1,4 +1,5 @@
 const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters')
 const mongoose = require('mongoose')
 const Notification = require('../models/Notification')
 const jwt = require('jsonwebtoken')
@@ -6,6 +7,9 @@ const { inMemoryStore } = require('../utils/inMemoryStore')
 const { getJwtSecret } = require('../utils/jwtSecret')
 
 const router = express.Router()
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 
 // Middleware to get authenticated user
 const getAuthUser = (req) => {

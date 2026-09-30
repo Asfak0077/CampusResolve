@@ -1,6 +1,10 @@
 const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters')
 const mongoose = require('mongoose')
 const router = express.Router()
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 const Teacher = require('../models/Teacher')
 const Complaint = require('../models/Complaint')
 const { inMemoryStore } = require('../utils/inMemoryStore')

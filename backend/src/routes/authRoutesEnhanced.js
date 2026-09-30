@@ -1,4 +1,5 @@
 const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
@@ -14,6 +15,9 @@ const { getJwtSecret } = require('../utils/jwtSecret')
 const { authLimiter } = require('../middleware/rateLimiters')
 
 const router = express.Router()
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 

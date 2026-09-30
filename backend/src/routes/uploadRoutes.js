@@ -1,6 +1,10 @@
-const express = require('express');
+const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters');
 const { protect } = require('../middleware/authMiddleware');
 const router = express.Router();
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 const multer = require('multer');
 const path = require('path');
 const { uploadLimiter } = require('../middleware/rateLimiters');

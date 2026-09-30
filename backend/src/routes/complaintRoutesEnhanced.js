@@ -1,4 +1,5 @@
 const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters')
 const mongoose = require('mongoose')
 const Complaint = require('../models/Complaint')
 const Student = require('../models/Student')
@@ -25,6 +26,9 @@ const { predictComplaintResolution } = require('../utils/aiSimulator')
 const { analyzeComplaintIntelligence } = require('../services/aiIntelligenceService')
 
 const router = express.Router()
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 
 // ============ AI RESOLUTION PREDICTION ROUTE ============
 

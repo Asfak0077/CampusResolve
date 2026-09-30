@@ -43,6 +43,19 @@ const uploadLimiter = rateLimit({
   message: jsonLimitResponse('Too many uploads. Please try again later.')
 })
 
+/**
+ * Baseline limiter for every API route group — blunt but effective protection
+ * for handlers that read/write the database. Generous enough that normal
+ * dashboard usage (a few hundred requests per session) is unaffected.
+ */
+const apiLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: jsonLimitResponse('Too many requests. Please slow down.')
+})
+
 /** Generic write limiter for public form-style endpoints. */
 const writeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -52,4 +65,4 @@ const writeLimiter = rateLimit({
   message: jsonLimitResponse('Too many submissions. Please try again later.')
 })
 
-module.exports = { authLimiter, aiLimiter, uploadLimiter, writeLimiter }
+module.exports = { apiLimiter, authLimiter, aiLimiter, uploadLimiter, writeLimiter }

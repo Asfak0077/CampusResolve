@@ -1,4 +1,5 @@
 const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters')
 const crypto = require('crypto')
 const jwt = require('jsonwebtoken')
 const mongoose = require('mongoose')
@@ -42,6 +43,9 @@ const { getJwtSecret } = require('../utils/jwtSecret')
 const { aiLimiter } = require('../middleware/rateLimiters')
 
 const router = express.Router()
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 
 // ─── Intent Regular Expressions ───────────────────────────────────────────────
 const INTENTS = {

@@ -1,4 +1,5 @@
 const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters')
 const { protect, authorize } = require('../middleware/authMiddleware')
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
@@ -7,6 +8,9 @@ const { mapTeacher } = require('../utils/mapDocs')
 const { inMemoryStore } = require('../utils/inMemoryStore')
 
 const router = express.Router()
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 
 const nextTeacherId = (count) => `TCH${String(count + 1001).padStart(4, '0')}`
 

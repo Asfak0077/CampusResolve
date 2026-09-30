@@ -1,4 +1,5 @@
 const express = require('express')
+const { apiLimiter } = require('../middleware/rateLimiters')
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
@@ -8,6 +9,9 @@ const Teacher = require('../models/Teacher')
 const { inMemoryStore } = require('../utils/inMemoryStore')
 
 const router = express.Router()
+
+// Baseline rate limit for every route in this group (see middleware/rateLimiters.js).
+router.use(apiLimiter)
 
 // Ensure uploads/profile directory exists
 const profileUploadDir = path.join(__dirname, '../../uploads/profile')
