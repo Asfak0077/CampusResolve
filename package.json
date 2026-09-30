@@ -12,8 +12,9 @@
     "dev:backend": "npm --workspace backend run dev",
     "build:frontend": "npm --workspace frontend run build",
     "build:backend": "npm --workspace backend run build",
-    "lint": "npm --workspaces run lint",
-    "vercel-build": "npm run build:frontend"
+    "lint": "npm --workspace frontend run lint && npm --workspace backend run lint",
+    "vercel-build": "npm run build:frontend",
+    "test:security": "node backend/scripts/security-smoke-test.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

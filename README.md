@@ -255,7 +255,8 @@ From the repository root (npm workspaces):
 | `npm run dev:backend` | Express API with `node --watch` on `:5001` |
 | `npm run dev:frontend` | Vite dev server on `:5173` |
 | `npm run build:frontend` | Type-check (`tsc`) + production build to `frontend/dist` |
-| `npm run lint` | ESLint across the frontend |
+| `npm run lint` | Frontend ESLint **and** a backend syntax check (both must pass) |
+| `npm run test:security` | 22-check authorization regression test — run it with the API up |
 | `npm run vercel-build` | Build command used by Vercel |
 
 Backend maintenance scripts (`node backend/<script>.js`, all read `MONGO_URI` from the environment):
@@ -267,6 +268,7 @@ Backend maintenance scripts (`node backend/<script>.js`, all read `MONGO_URI` fr
 | `update_admin_password.js` | Reset the admin password (`ADMIN_PASSWORD=...`) |
 | `list_students.js` · `get_admin_id.js` | Inspect accounts |
 | `test_all_endpoints.js` | Smoke-test a running API |
+| `scripts/security-smoke-test.mjs` | Verify anonymous calls are rejected and role boundaries hold |
 | `scripts/resetTeachersPwd.js` | Bulk-reset teacher passwords (needs `--yes`) |
 | `scripts/clear_complaints_feedback.js` | Wipe complaints + feedback (needs `--yes`) |
 

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔐 Report a security vulnerability
+    url: https://github.com/Asfak0077/CampusResolve/security/advisories/new
+    about: Please report security issues privately — never in a public issue.
+  - name: 📚 Documentation
+    url: https://github.com/Asfak0077/CampusResolve/blob/main/README.md
+    about: Setup, architecture, API reference, deployment and troubleshooting.
+  - name: 💬 Questions and ideas
+    url: https://github.com/Asfak0077/CampusResolve/discussions
+    about: Ask questions or discuss ideas with the community.
