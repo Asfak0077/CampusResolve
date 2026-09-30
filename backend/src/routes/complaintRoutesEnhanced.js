@@ -9,7 +9,7 @@ const { createNotification } = require('../utils/notificationHelper')
 const { emitToRole, emitToUser } = require('../utils/socketService')
 const { logActivity } = require('../utils/loggerService')
 const { inMemoryStore } = require('../utils/inMemoryStore')
-const { protect } = require('../middleware/authMiddleware')
+const { authorize, protect } = require('../middleware/authMiddleware')
 const { getNextComplaintId } = require('../utils/complaintIdService')
 const {
   sendComplaintConfirmation,
@@ -29,7 +29,7 @@ const router = express.Router()
 // ============ AI RESOLUTION PREDICTION ROUTE ============
 
 // Predict resolution parameters before submission
-router.post('/predict-resolution', async (req, res) => {
+router.post('/predict-resolution', protect, async (req, res) => {
   try {
     const {
       title = '',
@@ -447,7 +447,7 @@ router.put('/:complaintId/feedback', protect, async (req, res) => {
 })
 
 // Delete complaint (Student / Owner / Admin)
-router.delete('/:complaintId', protect, async (req, res) => {
+router.delete('/:complaintId', protect, authorize('admin'), async (req, res) => {
   try {
     const { complaintId } = req.params
     const bodyStudentId = req.body?.studentId
@@ -528,7 +528,7 @@ router.delete('/:complaintId', protect, async (req, res) => {
 // ============ ADMIN COMPLAINT ROUTES ============
 
 // Get all complaints with filters
-router.get('/admin/all-complaints', async (req, res) => {
+router.get('/admin/all-complaints', protect, authorize('admin'), async (req, res) => {
   try {
     const { status, priority, department, search } = req.query
     const page = parseInt(req.query.page) || 1
@@ -585,7 +585,7 @@ router.get('/admin/all-complaints', async (req, res) => {
 })
 
 // Assign complaint to teacher (enhanced with reassign support and activity logging)
-router.put('/:complaintId/assign', async (req, res) => {
+router.put('/:complaintId/assign', protect, authorize('admin'), async (req, res) => {
   try {
     const { complaintId } = req.params
     const { assignedTeacherId, assignedTeacherName, teacherId } = req.body
@@ -777,57 +777,33 @@ router.put('/:complaintId/assign', async (req, res) => {
 })
 
 // Get dashboard analytics
-router.get('/admin/analytics', async (req, res) => {
+router.get('/admin/analytics', protect, authorize('admin'), async (req, res) => {
   try {
-    const totalComplaints = await Complaint.countDocuments().catch(() => 0)
-    const resolvedComplaints = await Complaint.countDocuments({ status: 'Resolved' }).catch(() => 0)
-    const pendingComplaints = await Complaint.countDocuments({ status: 'Submitted' }).catch(() => 0)
-    const inProgressComplaints = await Complaint.countDocuments({ status: 'In Progress' }).catch(() => 0)
+    // Works against MongoDB when connected, and against the in-memory store when
+    // the backend runs in offline/demo mode (this endpoint used to 500 offline).
+    const complaints = mongoose.connection.readyState === 1
+      ? await Complaint.find({}).select('status department priority category satisfactionRating').lean()
+      : inMemoryStore.getComplaints()
 
-    // Complaints by department
-    const complaintsByDept = await Complaint.aggregate([
-      {
-        $group: {
-          _id: '$department',
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { count: -1 } }
-    ])
+    const countBy = (key) => complaints.reduce((acc, complaint) => {
+      const value = complaint[key] || 'Unspecified'
+      acc[value] = (acc[value] || 0) + 1
+      return acc
+    }, {})
 
-    // Complaints by priority
-    const complaintsByPriority = await Complaint.aggregate([
-      {
-        $group: {
-          _id: '$priority',
-          count: { $sum: 1 }
-        }
-      }
-    ])
+    const totalComplaints = complaints.length
+    const resolvedComplaints = complaints.filter((c) => c.status === 'Resolved').length
+    const pendingComplaints = complaints.filter((c) => c.status === 'Submitted').length
+    const inProgressComplaints = complaints.filter((c) => c.status === 'In Progress').length
 
-    // Complaints by category
-    const complaintsByCategory = await Complaint.aggregate([
-      {
-        $group: {
-          _id: '$category',
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { count: -1 } },
-      { $limit: 5 }
-    ])
+    const toSortedPairs = (counts) =>
+      Object.entries(counts)
+        .map(([_id, count]) => ({ _id, count }))
+        .sort((a, b) => b.count - a.count)
 
-    // Satisfaction rating average
-    const satisfactionData = await Complaint.aggregate([
-      { $match: { satisfactionRating: { $ne: null } } },
-      {
-        $group: {
-          _id: null,
-          avgRating: { $avg: '$satisfactionRating' },
-          count: { $sum: 1 }
-        }
-      }
-    ]).catch(() => [])
+    const ratings = complaints
+      .map((c) => Number(c.satisfactionRating))
+      .filter((rating) => Number.isFinite(rating) && rating > 0)
 
     res.json({
       totalComplaints,
@@ -835,11 +811,11 @@ router.get('/admin/analytics', async (req, res) => {
       pendingComplaints,
       inProgressComplaints,
       resolutionRate: totalComplaints > 0 ? (resolvedComplaints / totalComplaints * 100).toFixed(2) : 0,
-      complaintsByDept,
-      complaintsByPriority,
-      complaintsByCategory,
-      avgSatisfaction: satisfactionData[0]?.avgRating || 0,
-      feedbackCount: satisfactionData[0]?.count || 0
+      complaintsByDept: toSortedPairs(countBy('department')),
+      complaintsByPriority: toSortedPairs(countBy('priority')),
+      complaintsByCategory: toSortedPairs(countBy('category')).slice(0, 5),
+      avgSatisfaction: ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0,
+      feedbackCount: ratings.length
     })
   } catch (error) {
     console.error(error)
@@ -848,7 +824,7 @@ router.get('/admin/analytics', async (req, res) => {
 })
 
 // Get activity logs for admin (all) or filtered by teacher
-router.get('/admin/activity-logs', async (req, res) => {
+router.get('/admin/activity-logs', protect, authorize('admin'), async (req, res) => {
   try {
     const { limit: queryLimit, teacherId } = req.query
     const logLimit = parseInt(queryLimit) || 50
@@ -873,7 +849,7 @@ router.get('/admin/activity-logs', async (req, res) => {
 })
 
 // Get activity logs for a specific teacher
-router.get('/teacher/:teacherId/activity-logs', async (req, res) => {
+router.get('/teacher/:teacherId/activity-logs', protect, authorize('teacher', 'admin'), async (req, res) => {
   try {
     const { teacherId } = req.params
     const logLimit = parseInt(req.query.limit) || 20
@@ -894,7 +870,7 @@ router.get('/teacher/:teacherId/activity-logs', async (req, res) => {
 // ============ TEACHER COMPLAINT ROUTES ============
 
 // Get teacher's assigned complaints (by assignedTeacherId) + department pool
-router.get('/teacher/:teacherId', async (req, res) => {
+router.get('/teacher/:teacherId', protect, authorize('teacher', 'admin'), async (req, res) => {
   try {
     const { teacherId } = req.params
     const { status } = req.query
@@ -939,7 +915,7 @@ router.get('/teacher/:teacherId', async (req, res) => {
 })
 
 // Update complaint status (Teacher)
-router.put('/:complaintId/update-status', async (req, res) => {
+router.put('/:complaintId/update-status', protect, authorize('teacher', 'admin'), async (req, res) => {
   try {
     const { complaintId } = req.params
     const { newStatus, resolutionNotes, updatedBy } = req.body
@@ -1087,7 +1063,7 @@ router.put('/:complaintId/update-status', async (req, res) => {
 
 // ============ LEGACY-COMPATIBLE ROUTES (USED BY CURRENT FRONTEND) ============
 
-router.get('/', async (_req, res) => {
+router.get('/', protect, authorize('admin'), async (_req, res) => {
   try {
     const complaints = await Complaint.find({}).sort({ createdAt: -1 })
     return res.json(complaints.map(mapComplaint))
@@ -1097,7 +1073,7 @@ router.get('/', async (_req, res) => {
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', protect, async (req, res) => {
   try {
     const payload = req.body
 
@@ -1144,7 +1120,7 @@ router.post('/', async (req, res) => {
   }
 })
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', protect, authorize('admin'), async (req, res) => {
   try {
     const { id } = req.params
     const { status, adminRemarks, resolutionNotes } = req.body
@@ -1207,7 +1183,7 @@ router.patch('/:id', async (req, res) => {
   }
 })
 
-router.post('/:id/assign', async (req, res) => {
+router.post('/:id/assign', protect, authorize('admin'), async (req, res) => {
   try {
     const { id } = req.params
     const { teacherId } = req.body

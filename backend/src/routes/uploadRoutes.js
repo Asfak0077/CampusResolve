@@ -1,7 +1,9 @@
 const express = require('express');
+const { protect } = require('../middleware/authMiddleware');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const { uploadLimiter } = require('../middleware/rateLimiters');
 const fs = require('fs');
 
 // Ensure uploads directory exists
@@ -41,7 +43,7 @@ const upload = multer({
 });
 
 // Multi-file upload route
-router.post('/multiple', upload.array('files', 5), (req, res) => {
+router.post('/multiple', protect, uploadLimiter, upload.array('files', 5), (req, res) => {
   try {
     const files = req.files.map(file => ({
       filename: file.originalname,

@@ -11,6 +11,7 @@ const { OAuth2Client } = require('google-auth-library')
 const { supabase } = require('../utils/supabaseClient')
 const { inMemoryStore } = require('../utils/inMemoryStore')
 const { getJwtSecret } = require('../utils/jwtSecret')
+const { authLimiter } = require('../middleware/rateLimiters')
 
 const router = express.Router()
 
@@ -275,10 +276,10 @@ const handleStudentLogin = async (req, res) => {
   }
 }
 
-router.post('/student-login', handleStudentLogin)
-router.post('/login', handleStudentLogin)
+router.post('/student-login', authLimiter, handleStudentLogin)
+router.post('/login', authLimiter, handleStudentLogin)
 
-router.post('/student-signup', async (req, res) => {
+router.post('/student-signup', authLimiter, async (req, res) => {
   try {
     const { name, email, password, studentId, department, phone } = req.body
 
@@ -341,7 +342,7 @@ router.post('/student-signup', async (req, res) => {
 
 // ============ TEACHER ROUTES ============
 
-router.post('/teacher-login', async (req, res) => {
+router.post('/teacher-login', authLimiter, async (req, res) => {
   try {
     const { teacherId, password } = req.body
     if (!teacherId || !password) {
@@ -659,7 +660,7 @@ router.post('/verify-email-exists', async (req, res) => {
 })
 
 // Forgot Password - Student (OTP Flow)
-router.post('/forgot-password/student', async (req, res) => {
+router.post('/forgot-password/student', authLimiter, async (req, res) => {
   try {
     const { email } = req.body
 
@@ -700,7 +701,7 @@ router.post('/forgot-password/student', async (req, res) => {
 })
 
 // Verify OTP
-router.post('/verify-otp', async (req, res) => {
+router.post('/verify-otp', authLimiter, async (req, res) => {
   try {
     const { email, otp } = req.body
 
@@ -741,7 +742,7 @@ router.post('/verify-otp', async (req, res) => {
 })
 
 // Forgot Password - Teacher (OTP Flow)
-router.post('/forgot-password/teacher', async (req, res) => {
+router.post('/forgot-password/teacher', authLimiter, async (req, res) => {
   try {
     const { email } = req.body
 
@@ -875,12 +876,12 @@ async function handleUpdatePassword(req, res) {
   }
 }
 
-router.post('/update-password', handleUpdatePassword)
+router.post('/update-password', authLimiter, handleUpdatePassword)
 router.put('/update-password', handleUpdatePassword)
 router.put('/reset-password', handleUpdatePassword)
 
 // Send CampusResolve Branded Password Reset Email
-router.post('/send-password-reset-email', async (req, res) => {
+router.post('/send-password-reset-email', authLimiter, async (req, res) => {
   try {
     const { email, resetUrl, name } = req.body
     if (!email) {
@@ -897,7 +898,7 @@ router.post('/send-password-reset-email', async (req, res) => {
 })
 
 // Reset Password (Unified OTP Flow)
-router.post('/reset-password', async (req, res, next) => {
+router.post('/reset-password', authLimiter, async (req, res, next) => {
   if (!req.body.otp && req.body.password) {
     return handleUpdatePassword(req, res, next)
   }
@@ -947,7 +948,7 @@ router.post('/reset-password', async (req, res, next) => {
 })
 
 // Change Password (Authenticated)
-router.post('/change-password', async (req, res) => {
+router.post('/change-password', authLimiter, async (req, res) => {
   try {
     const { userId, userType, currentPassword, newPassword } = req.body
 
@@ -1012,7 +1013,7 @@ router.post('/change-password', async (req, res) => {
 })
 
 // Set Password (for Google users)
-router.post('/set-password', async (req, res) => {
+router.post('/set-password', authLimiter, async (req, res) => {
   try {
     const { password } = req.body
 

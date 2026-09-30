@@ -39,6 +39,7 @@ const {
 const { orchestrateChat } = require('../utils/aiOrchestrator')
 const { joinExistingComplaint, findDuplicateComplaints } = require('../utils/duplicateDetectionEngine')
 const { getJwtSecret } = require('../utils/jwtSecret')
+const { aiLimiter } = require('../middleware/rateLimiters')
 
 const router = express.Router()
 
@@ -160,7 +161,7 @@ const getEligibleResolvedComplaints = async (studentId, studentEmail) => {
 }
 
 // ─── POST /api/chatbot/message ────────────────────────────────────────────────
-router.post('/message', async (req, res) => {
+router.post('/message', aiLimiter, async (req, res) => {
   try {
     const {
       message,
@@ -655,7 +656,7 @@ router.get('/logs', protect, authorize('admin'), async (req, res) => {
 })
 
 // ─── POST /api/chatbot/enhance-text ──────────────────────────────────────────
-router.post('/enhance-text', async (req, res) => {
+router.post('/enhance-text', aiLimiter, async (req, res) => {
   try {
     const { text, mode } = req.body
     if (!text) return res.status(400).json({ error: 'Text is required' })
@@ -668,7 +669,7 @@ router.post('/enhance-text', async (req, res) => {
 })
 
 // ─── POST /api/chatbot/analyze-feedback ──────────────────────────────────────
-router.post('/analyze-feedback', async (req, res) => {
+router.post('/analyze-feedback', aiLimiter, async (req, res) => {
   try {
     const text = (req.body.text || req.body.feedbackText || '').trim()
     if (!text) {
@@ -684,7 +685,7 @@ router.post('/analyze-feedback', async (req, res) => {
 
 
 // ─── POST /api/chatbot/generate-bio ──────────────────────────────────────────
-router.post('/generate-bio', async (req, res) => {
+router.post('/generate-bio', aiLimiter, async (req, res) => {
   try {
     const { name, role, department } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
@@ -697,7 +698,7 @@ router.post('/generate-bio', async (req, res) => {
 })
 
 // ─── POST /api/chatbot/user-context ──────────────────────────────────────────
-router.post('/user-context', async (req, res) => {
+router.post('/user-context', aiLimiter, async (req, res) => {
   try {
     const { userId, userRole } = req.body
     if (!userId) return res.status(400).json({ error: 'userId required' })

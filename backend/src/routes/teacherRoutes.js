@@ -1,4 +1,5 @@
 const express = require('express')
+const { protect, authorize } = require('../middleware/authMiddleware')
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
 const Teacher = require('../models/Teacher')
@@ -9,7 +10,7 @@ const router = express.Router()
 
 const nextTeacherId = (count) => `TCH${String(count + 1001).padStart(4, '0')}`
 
-router.get('/', async (_req, res) => {
+router.get('/', protect, async (_req, res) => {
   if (mongoose.connection.readyState !== 1) {
     return res.json(inMemoryStore.getTeachers())
   }
@@ -21,7 +22,7 @@ router.get('/', async (_req, res) => {
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', protect, authorize('admin'), async (req, res) => {
   const { name, department, email, designation } = req.body
   if (!name || !department) {
     return res.status(400).json({ message: 'Name and department are required' })
@@ -48,7 +49,7 @@ router.post('/', async (req, res) => {
   return res.status(201).json(mapTeacher(teacher))
 })
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', protect, authorize('admin'), async (req, res) => {
   const { id } = req.params
 
   if (mongoose.connection.readyState !== 1) {
