@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "build:frontend": "tsc && vite build",
     "preview": "vite preview",
+    "smoke:import": "node scripts/importSmoke.mjs",
     "lint": "eslint \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {

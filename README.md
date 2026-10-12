@@ -17,6 +17,15 @@ npm run dev:frontend                  # Vite dev server on :5173 (this is the pu
 Open the **frontend** port to use the app — the Vite dev server proxies `/api`, `/uploads`
 and `/socket.io` to the backend, so the browser only ever talks to one origin.
 
+> **Opening the hosted preview:** use the live-preview panel in the workspace (it injects the
+> sandbox traffic token). Opening the raw `https://<port>-<sandbox-id>.e2b.app` URL directly in
+> a browser returns **403 "Missing traffic access token"** — that is E2B's restricted-public-access
+> behaviour, not an application error. For a public URL anyone can open, deploy to Vercel (below).
+
+> **Supabase is optional.** Without `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` the app
+> uses an inert client and authenticates solely through the backend API. `frontend/scripts/importSmoke.mjs`
+> (`npm run smoke:import`) loads every module to catch import-time crashes of this kind.
+
 ### Demo / offline mode
 
 `MONGO_URI` is optional. When it is missing or unreachable the API logs
