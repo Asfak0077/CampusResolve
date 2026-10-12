@@ -230,6 +230,32 @@ class InMemoryStore {
     return student
   }
 
+  createStudent(data) {
+    const studentId = data.studentId || `CR-${Date.now().toString().slice(-6)}`
+    const newStudent = {
+      _id: `64f1s${Date.now().toString(16)}`,
+      id: studentId,
+      studentId,
+      name: data.name,
+      email: data.email,
+      phone: data.phone || '',
+      department: data.department || 'General',
+      semesterYear: data.semesterYear || '',
+      role: data.role || 'student',
+      isActive: true,
+      emailNotifications: true,
+      preferences: { darkMode: false, language: 'en', emailNotifications: true },
+      completionPercentage: 0,
+      activityHistory: [],
+      totalComplaints: 0,
+      resolvedComplaints: 0,
+      createdAt: new Date().toISOString()
+    }
+    this.students.push(newStudent)
+    this._persist()
+    return newStudent
+  }
+
   // ── Teacher methods ──
 
   findTeacherByIdOrEmail(input) {

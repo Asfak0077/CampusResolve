@@ -330,6 +330,199 @@ router.post('/student-signup', async (req, res) => {
   }
 })
 
+/**
+ * Complete an invite / email-link signup (Supabase "set your password" flow).
+ * The password itself is set client-side through Supabase, so this endpoint only
+ * provisions the local Student/Teacher record and issues the app's own JWT.
+ */
+router.post('/complete-signup', async (req, res) => {
+  try {
+    const { email, name, department, role, studentId } = req.body || {}
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ message: 'Email is required' })
+    }
+
+    const normalizedEmail = email.toLowerCase().trim()
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ message: 'Invalid email format' })
+    }
+
+    const displayName = (name || normalizedEmail.split('@')[0] || 'User').trim()
+    const assignedRole = ['student', 'teacher', 'admin'].includes(role) ? role : 'student'
+    const assignedDepartment = department || 'General'
+
+    // OAuth-created accounts authenticate via Supabase/Google, so they get an
+    // unusable random hash rather than a real password.
+    const unusableHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10)
+
+    // ── Offline / demo mode ──
+    if (mongoose.connection.readyState !== 1) {
+      const existingStudent = inMemoryStore.findStudentByEmail(normalizedEmail)
+      const existingTeacher = inMemoryStore.findTeacherByIdOrEmail(normalizedEmail)
+
+      if (existingStudent) {
+        const accessToken = signToken({
+          id: existingStudent.id || existingStudent.studentId,
+          role: existingStudent.role || 'student',
+          email: existingStudent.email,
+          department: existingStudent.department
+        })
+        return res.json({
+          accessToken,
+          user: {
+            id: existingStudent.id || existingStudent.studentId,
+            name: existingStudent.name,
+            email: existingStudent.email,
+            role: existingStudent.role || 'student',
+            department: existingStudent.department,
+            studentId: existingStudent.studentId || '',
+            requiresPasswordSetup: false
+          }
+        })
+      }
+
+      if (existingTeacher) {
+        const teacherKey = existingTeacher.teacherId || existingTeacher.id
+        const accessToken = signToken({
+          id: teacherKey,
+          role: 'teacher',
+          email: existingTeacher.email,
+          department: existingTeacher.department,
+          teacherId: teacherKey
+        })
+        return res.json({
+          accessToken,
+          user: {
+            id: teacherKey,
+            teacherId: teacherKey,
+            name: existingTeacher.name,
+            email: existingTeacher.email,
+            role: 'teacher',
+            department: existingTeacher.department,
+            studentId: '',
+            requiresPasswordSetup: false
+          }
+        })
+      }
+
+      const created = assignedRole === 'teacher'
+        ? inMemoryStore.createTeacher({
+          teacherId: String(studentId || '').trim() || undefined,
+          name: displayName,
+          email: normalizedEmail,
+          department: assignedDepartment
+        })
+        : inMemoryStore.createStudent({
+          studentId: String(studentId || '').trim(),
+          name: displayName,
+          email: normalizedEmail,
+          department: assignedDepartment,
+          role: assignedRole
+        })
+
+      const createdKey = created.teacherId || created.id || created.studentId
+      const accessToken = signToken({
+        id: createdKey,
+        role: assignedRole,
+        email: created.email,
+        department: created.department,
+        studentId: assignedRole === 'teacher' ? undefined : created.studentId,
+        teacherId: assignedRole === 'teacher' ? createdKey : undefined
+      })
+
+      return res.status(201).json({
+        accessToken,
+        user: {
+          id: createdKey,
+          teacherId: assignedRole === 'teacher' ? createdKey : undefined,
+          name: created.name,
+          email: created.email,
+          role: assignedRole,
+          department: created.department,
+          studentId: created.studentId || '',
+          requiresPasswordSetup: false
+        }
+      })
+    }
+
+    // ── MongoDB mode ──
+    if (assignedRole === 'teacher') {
+      let teacher = await Teacher.findOne({ email: normalizedEmail })
+      if (!teacher) {
+        teacher = await Teacher.create({
+          teacherId: String(studentId || '').trim() || `T-${Date.now().toString().slice(-6)}`,
+          name: displayName,
+          email: normalizedEmail,
+          department: assignedDepartment,
+          designation: 'Professor',
+          passwordHash: unusableHash,
+          role: 'teacher',
+          isActive: true
+        })
+      }
+
+      const accessToken = signToken({
+        id: teacher.teacherId,
+        role: 'teacher',
+        email: teacher.email,
+        department: teacher.department,
+        teacherId: teacher.teacherId
+      })
+      return res.json({
+        accessToken,
+        user: {
+          id: teacher.teacherId,
+          teacherId: teacher.teacherId,
+          name: teacher.name,
+          email: teacher.email,
+          role: 'teacher',
+          department: teacher.department,
+          studentId: '',
+          requiresPasswordSetup: false
+        }
+      })
+    }
+
+    let student = await Student.findOne({ email: normalizedEmail })
+    if (!student) {
+      student = await Student.create({
+        name: displayName,
+        email: normalizedEmail,
+        passwordHash: unusableHash,
+        isPasswordSet: true,
+        studentId: String(studentId || '').trim(),
+        department: assignedDepartment,
+        role: assignedRole
+      })
+    }
+
+    const accessToken = signToken({
+      id: student._id.toString(),
+      role: student.role,
+      email: student.email,
+      department: student.department,
+      studentId: student.studentId
+    })
+    return res.json({
+      accessToken,
+      user: {
+        id: student._id.toString(),
+        name: student.name,
+        email: student.email,
+        role: student.role,
+        department: student.department,
+        studentId: student.studentId || '',
+        requiresPasswordSetup: false
+      }
+    })
+  } catch (error) {
+    console.error('complete-signup error:', error)
+    return res.status(500).json({ message: 'Could not complete signup' })
+  }
+})
+
 // ============ TEACHER ROUTES ============
 
 router.post('/teacher-login', async (req, res) => {
@@ -639,6 +832,24 @@ router.post('/verify-email-exists', async (req, res) => {
 
     const normalizedEmail = email.toLowerCase().trim()
     let registered = false
+
+    // Offline/demo mode: resolve against the demo roster and the in-memory store
+    if (mongoose.connection.readyState !== 1) {
+      const demoStudent = findDemoStudentByEmail(normalizedEmail)
+      const demoTeacher = findDemoTeacher(normalizedEmail)
+      const storeStudent = inMemoryStore.findStudentByEmail(normalizedEmail)
+      const storeTeacher = inMemoryStore.findTeacherByIdOrEmail(normalizedEmail)
+
+      if (role === 'teacher') {
+        registered = Boolean(demoTeacher || storeTeacher)
+      } else if (role === 'student') {
+        registered = Boolean(demoStudent || storeStudent)
+      } else {
+        registered = Boolean(demoStudent || demoTeacher || storeStudent || storeTeacher)
+      }
+
+      return res.json({ registered })
+    }
 
     if (role === 'teacher') {
       registered = Boolean(await Teacher.exists({ email: normalizedEmail }))

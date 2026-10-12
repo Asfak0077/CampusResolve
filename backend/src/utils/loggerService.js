@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const ActivityLog = require('../models/ActivityLog');
 
 /**
@@ -10,6 +11,14 @@ const ActivityLog = require('../models/ActivityLog');
  */
 const logActivity = async (complaintId, action, performedBy, details = {}, notes = '') => {
   try {
+    // Offline / demo mode: complaint ids are in-memory keys, not ObjectIds, so a
+    // Mongo write would fail validation. The admin activity feed is derived from
+    // the in-memory complaint timelines, and every offline route already appends
+    // to them, so there is nothing to write here.
+    if (mongoose.connection.readyState !== 1) {
+      return null;
+    }
+
     const log = new ActivityLog({
       complaintId,
       action,
@@ -20,7 +29,7 @@ const logActivity = async (complaintId, action, performedBy, details = {}, notes
     await log.save();
     return log;
   } catch (error) {
-    console.error('Failed to log activity:', error);
+    console.error('Failed to log activity:', error.message);
     // Don't throw error to avoid breaking the main flow
     return null;
   }
