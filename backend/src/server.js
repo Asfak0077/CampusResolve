@@ -76,12 +76,19 @@ const start = async () => {
   // Initialize and migrate Complaint IDs for in-memory and MongoDB stores
   initializeAndMigrateComplaintIds().catch(err => console.error('Complaint ID init failed:', err.message))
 
+  // Seed offline demo data immediately so the app is usable before/without Mongo
+  if (require('mongoose').connection.readyState !== 1) {
+    seedDemoData().catch(err => console.error('Offline demo seeding failed:', err.message))
+  }
+
   // Start DB connection in background so server isn't blocked by retry loop
   connectDatabase().then(async (isConnected) => {
     if (isConnected) {
       await seedAllowedEmails().catch(err => console.error('Allowed email seeding failed:', err.message))
       await seedDemoData().catch(err => console.error('Seeding failed:', err.message))
       await initializeAndMigrateComplaintIds().catch(err => console.error('Complaint ID migration failed:', err.message))
+    } else {
+      await seedDemoData().catch(err => console.error('Offline demo seeding failed:', err.message))
     }
   }).catch(err => console.error('DB Connection disabled:', err.message))
 

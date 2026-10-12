@@ -10,6 +10,7 @@ const { sendPasswordResetEmail, sendLoginNotification, sendPasswordChangeNotific
 const { OAuth2Client } = require('google-auth-library')
 const { supabase } = require('../utils/supabaseClient')
 const { inMemoryStore } = require('../utils/inMemoryStore')
+const { findDemoStudentByEmail, findDemoTeacher, verifyDemoPassword } = require('../utils/demoCredentials')
 
 const router = express.Router()
 
@@ -162,38 +163,25 @@ const handleStudentLogin = async (req, res) => {
     const normalizedEmail = email.toLowerCase()
 
     if (mongoose.connection.readyState !== 1) {
-      if (normalizedEmail === 'student@campusresolve.edu' && (password === 'password123' || password === 'student123')) {
-        const accessToken = signToken({ id: 'CR21CS001', role: 'student', email: 'student@campusresolve.edu', department: 'CSE', studentId: 'CR21CS001' })
+      const demoStudent = findDemoStudentByEmail(normalizedEmail)
+      if (demoStudent && verifyDemoPassword(demoStudent, password)) {
+        const accessToken = signToken({ id: demoStudent.id, role: demoStudent.role, email: demoStudent.email, department: demoStudent.department, studentId: demoStudent.studentId })
         return res.json({
           accessToken,
           user: {
-            id: 'CR21CS001',
-            name: 'Student User',
-            email: 'student@campusresolve.edu',
-            role: 'student',
-            department: 'CSE',
-            studentId: 'CR21CS001',
+            id: demoStudent.id,
+            name: demoStudent.name,
+            email: demoStudent.email,
+            role: demoStudent.role,
+            department: demoStudent.department,
+            studentId: demoStudent.studentId,
             requiresPasswordSetup: false
           }
         })
       }
-      if (normalizedEmail === 'admin@campusresolve.edu' && (password === 'password123' || password === 'admin123')) {
-        const accessToken = signToken({ id: 'ADM-001', role: 'admin', email: 'admin@campusresolve.edu', department: 'Administration' })
-        return res.json({
-          accessToken,
-          user: {
-            id: 'ADM-001',
-            name: 'Admin Officer',
-            email: 'admin@campusresolve.edu',
-            role: 'admin',
-            department: 'Administration',
-            studentId: '',
-            requiresPasswordSetup: false
-          }
-        })
-      }
+
       const student = inMemoryStore.findStudentByEmail(normalizedEmail)
-      if (student) {
+      if (student && verifyDemoPassword(student, password)) {
         const accessToken = signToken({ id: student.id || student.studentId, role: student.role || 'student', email: student.email, department: student.department, studentId: student.studentId })
         return res.json({
           accessToken,
@@ -208,6 +196,10 @@ const handleStudentLogin = async (req, res) => {
           }
         })
       }
+
+      // Offline mode: never fall through to a Mongoose query (bufferCommands is
+      // disabled, so it would throw instead of returning a clean 401).
+      return res.status(401).json({ message: 'Invalid email or password' })
     }
 
     const user = await Student.findOne({ email: normalizedEmail })
@@ -349,21 +341,31 @@ router.post('/teacher-login', async (req, res) => {
     const cleanInput = teacherId.trim()
 
     if (mongoose.connection.readyState !== 1) {
-      if ((cleanInput.toUpperCase() === 'TCH-CSE-001' || cleanInput.toLowerCase() === 'cse.teacher@campusresolve.edu') && password === 'teach123') {
-        const accessToken = signToken({ id: 'TCH-CSE-001', role: 'teacher', email: 'cse.teacher@campusresolve.edu', department: 'CSE', teacherId: 'TCH-CSE-001' })
-        return res.json({
-          accessToken,
-          user: {
-            id: 'TCH-CSE-001',
-            teacherId: 'TCH-CSE-001',
-            name: 'Dr. Rajesh Kumar',
-            email: 'cse.teacher@campusresolve.edu',
-            role: 'teacher',
-            department: 'CSE',
-            designation: 'Professor'
-          }
-        })
+      const demoTeacher = findDemoTeacher(cleanInput)
+      const storedTeacher = demoTeacher ? null : inMemoryStore.findTeacherByIdOrEmail(cleanInput)
+      const teacher = demoTeacher || storedTeacher
+
+      if (!teacher) {
+        return res.status(401).json({ message: 'Teacher ID or Email not found' })
       }
+      if (!verifyDemoPassword(teacher, password)) {
+        return res.status(401).json({ message: 'Invalid credentials' })
+      }
+
+      const teacherKey = teacher.teacherId || teacher.id
+      const accessToken = signToken({ id: teacherKey, role: 'teacher', email: teacher.email, department: teacher.department, teacherId: teacherKey })
+      return res.json({
+        accessToken,
+        user: {
+          id: teacherKey,
+          teacherId: teacherKey,
+          name: teacher.name,
+          email: teacher.email,
+          role: 'teacher',
+          department: teacher.department,
+          designation: teacher.designation || 'Professor'
+        }
+      })
     }
 
     const teacher = await Teacher.findOne({

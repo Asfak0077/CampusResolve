@@ -26,6 +26,56 @@ const { analyzeComplaintIntelligence } = require('../services/aiIntelligenceServ
 
 const router = express.Router()
 
+/**
+ * Offline/demo mode: derive ActivityLog-shaped entries from the persistent
+ * in-memory store's complaint timelines. Keeps the admin activity feed populated
+ * when MongoDB is unreachable (Mongoose queries would throw with bufferCommands off).
+ */
+const buildInMemoryActivityLogs = ({ teacherId, limit = 50 } = {}) => {
+  const logs = []
+
+  for (const complaint of inMemoryStore.getComplaints()) {
+    for (const entry of complaint.resolutionTimeline || []) {
+      const actor = (entry.updatedBy || 'System').trim()
+      const role = /teacher|prof|dr\./i.test(actor) ? 'teacher' : /admin/i.test(actor) ? 'admin' : 'student'
+      const action =
+        entry.status === 'Submitted' ? 'created'
+          : entry.status === 'Assigned' ? 'assigned'
+            : entry.status === 'Reassigned' ? 'reassigned'
+              : entry.status === 'Escalated' ? 'escalated'
+                : 'status_changed'
+
+      logs.push({
+        _id: `${complaint.complaintId || complaint._id}-${entry.timestamp || complaint.createdAt}`,
+        action,
+        performedBy: {
+          userId: role === 'teacher' ? (complaint.assignedTeacherId || 'system') : role === 'admin' ? 'ADM-001' : (complaint.studentId || ''),
+          name: actor,
+          role
+        },
+        complaintId: {
+          _id: complaint._id,
+          complaintId: complaint.complaintId,
+          ticketNumber: complaint.ticketNumber || complaint.complaintId,
+          title: complaint.title,
+          category: complaint.category,
+          department: complaint.department,
+          studentName: complaint.studentName
+        },
+        details: { status: entry.status },
+        notes: entry.notes || '',
+        createdAt: entry.timestamp || complaint.createdAt
+      })
+    }
+  }
+
+  const filtered = teacherId ? logs.filter((log) => log.performedBy.userId === teacherId) : logs
+
+  return filtered
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, limit)
+}
+
 // ============ AI RESOLUTION PREDICTION ROUTE ============
 
 // Predict resolution parameters before submission
@@ -859,6 +909,10 @@ router.get('/admin/activity-logs', async (req, res) => {
       query['performedBy.userId'] = teacherId
     }
 
+    if (mongoose.connection.readyState !== 1) {
+      return res.json({ logs: buildInMemoryActivityLogs({ teacherId, limit: logLimit }) })
+    }
+
     const logs = await ActivityLog.find(query)
       .sort({ createdAt: -1 })
       .limit(logLimit)
@@ -877,6 +931,10 @@ router.get('/teacher/:teacherId/activity-logs', async (req, res) => {
   try {
     const { teacherId } = req.params
     const logLimit = parseInt(req.query.limit) || 20
+
+    if (mongoose.connection.readyState !== 1) {
+      return res.json({ logs: buildInMemoryActivityLogs({ teacherId, limit: logLimit }) })
+    }
 
     const logs = await ActivityLog.find({ 'performedBy.userId': teacherId })
       .sort({ createdAt: -1 })
@@ -1089,6 +1147,13 @@ router.put('/:complaintId/update-status', async (req, res) => {
 
 router.get('/', async (_req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      const complaints = [...inMemoryStore.getComplaints()].sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      )
+      return res.json(complaints.map(mapComplaint))
+    }
+
     const complaints = await Complaint.find({}).sort({ createdAt: -1 })
     return res.json(complaints.map(mapComplaint))
   } catch (error) {
@@ -1214,6 +1279,88 @@ router.post('/:id/assign', async (req, res) => {
 
     if (!teacherId) {
       return res.status(400).json({ message: 'Select a teacher first' })
+    }
+
+    // ── Offline / demo mode: assign against the persistent in-memory store ──
+    if (mongoose.connection.readyState !== 1) {
+      const storeTeacher = inMemoryStore.findTeacherByIdOrEmail(teacherId)
+      if (!storeTeacher) {
+        return res.status(404).json({ message: 'Teacher not found' })
+      }
+
+      const storeComplaint = inMemoryStore.findComplaintById(id)
+      if (!storeComplaint) {
+        return res.status(404).json({ message: 'Complaint not found' })
+      }
+
+      const storeTeacherKey = storeTeacher.teacherId || storeTeacher.id
+      const storeIsReassign = Boolean(
+        storeComplaint.assignedTeacherId && storeComplaint.assignedTeacherId !== storeTeacherKey
+      )
+      const storePreviousId = storeComplaint.assignedTeacherId || null
+      const storePreviousName = storeComplaint.assignedTeacherName || null
+      const assignedAt = new Date().toISOString()
+
+      const updatedComplaint = inMemoryStore.updateComplaint(id, {
+        assignedTeacherId: storeTeacherKey,
+        assignedTeacherName: storeTeacher.name,
+        assignedTeacherEmail: storeTeacher.email,
+        assignedTeacherDepartment: storeTeacher.department,
+        assignedDate: assignedAt,
+        status: 'Assigned',
+        resolutionTimeline: [
+          ...(storeComplaint.resolutionTimeline || []),
+          {
+            status: 'Assigned',
+            timestamp: assignedAt,
+            updatedBy: 'Admin',
+            notes: storeIsReassign
+              ? `Reassigned from ${storePreviousName} to ${storeTeacher.name}`
+              : `Assigned to ${storeTeacher.name}`
+          }
+        ]
+      })
+
+      if (storeIsReassign && storePreviousId) {
+        const previousTeacher = inMemoryStore.findTeacherByIdOrEmail(storePreviousId)
+        if (previousTeacher) {
+          previousTeacher.activeComplaints = Math.max(0, (previousTeacher.activeComplaints || 0) - 1)
+        }
+      }
+      storeTeacher.activeComplaints = (storeTeacher.activeComplaints || 0) + 1
+
+      await createNotification({
+        userId: storeComplaint.studentId || storeComplaint.studentEmail,
+        userRole: 'student',
+        type: 'complaint_assigned',
+        title: 'Complaint Assigned',
+        message: `Your complaint has been assigned to ${storeTeacher.name}.`,
+        metadata: {
+          complaintId: updatedComplaint._id,
+          assignedTeacherName: storeTeacher.name
+        }
+      }).catch(() => null)
+
+      await createNotification({
+        userId: storeTeacherKey,
+        userRole: 'teacher',
+        type: 'complaint_assigned',
+        title: 'New Complaint Assigned',
+        message: `Complaint "${storeComplaint.title}" has been assigned to you.`,
+        metadata: { complaintId: updatedComplaint._id }
+      }).catch(() => null)
+
+      emitToUser(storeTeacherKey, 'new_assignment', {
+        complaintId: updatedComplaint._id,
+        studentName: updatedComplaint.studentName,
+        category: updatedComplaint.category
+      })
+      emitToRole('teacher', 'new_assignment', {
+        complaintId: updatedComplaint._id,
+        assignedTeacherId: storeTeacherKey
+      })
+
+      return res.json(mapComplaint(updatedComplaint))
     }
 
     const teacher = await Teacher.findOne({ teacherId })

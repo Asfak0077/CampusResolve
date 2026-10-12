@@ -355,32 +355,40 @@ class InMemoryStore {
       assignedTeacherDepartment: data.assignedTeacherDepartment || '',
       assignedDate: data.assignedTeacherId ? new Date().toISOString() : null,
       attachments: data.attachments || [],
-      resolutionTimeline: [
-        {
-          status: 'Submitted',
-          timestamp: new Date().toISOString(),
-          updatedBy: 'System',
-          notes: 'Complaint submitted'
-        }
-      ],
-      createdAt: new Date().toISOString(),
+      resolutionTimeline: Array.isArray(data.resolutionTimeline) && data.resolutionTimeline.length
+        ? data.resolutionTimeline
+        : [
+          {
+            status: 'Submitted',
+            timestamp: new Date().toISOString(),
+            updatedBy: 'System',
+            notes: 'Complaint submitted'
+          }
+        ],
+      createdAt: data.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
 
     if (data.assignedTeacherId) {
       const teacher = this.findTeacherByIdOrEmail(data.assignedTeacherId)
       if (teacher) {
-        complaint.assignedTeacherName = teacher.name
-        complaint.assignedTeacherEmail = teacher.email
-        complaint.assignedTeacherDepartment = teacher.department
-        complaint.status = 'Assigned'
-        complaint.resolutionTimeline.push({
-          status: 'Assigned',
-          timestamp: new Date().toISOString(),
-          updatedBy: 'Student',
-          notes: `Directly assigned to ${teacher.name}`
-        })
-        teacher.activeComplaints = (teacher.activeComplaints || 0) + 1
+        if (!complaint.assignedTeacherName) complaint.assignedTeacherName = teacher.name
+        if (!complaint.assignedTeacherEmail) complaint.assignedTeacherEmail = teacher.email
+        if (!complaint.assignedTeacherDepartment) complaint.assignedTeacherDepartment = teacher.department
+        // Only auto-advance a brand-new complaint to "Assigned"; keep explicit
+        // statuses such as In Progress / Resolved supplied by the caller.
+        if (complaint.status === 'Submitted') {
+          complaint.status = 'Assigned'
+          complaint.resolutionTimeline.push({
+            status: 'Assigned',
+            timestamp: new Date().toISOString(),
+            updatedBy: 'Student',
+            notes: `Directly assigned to ${teacher.name}`
+          })
+        }
+        if (complaint.status !== 'Resolved' && complaint.status !== 'Closed') {
+          teacher.activeComplaints = (teacher.activeComplaints || 0) + 1
+        }
       }
     }
 

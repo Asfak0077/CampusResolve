@@ -1,9 +1,43 @@
 const bcrypt = require('bcryptjs')
 const Student = require('../models/Student')
 const Teacher = require('../models/Teacher')
+const { inMemoryStore } = require('./inMemoryStore')
+const { demoTeacherStoreRecords, demoComplaints } = require('./demoCredentials')
+
+/**
+ * Offline mode seeding: top up the persistent in-memory store so every demo login
+ * (student / admin / 6 department teachers) has a full roster and the dashboards
+ * have complaints to render. Idempotent — safe to run on every boot.
+ */
+const seedInMemoryDemoData = () => {
+  let teachersCreated = 0
+  for (const teacher of demoTeacherStoreRecords()) {
+    if (!inMemoryStore.findTeacherByIdOrEmail(teacher.teacherId)) {
+      inMemoryStore.createTeacher(teacher)
+      teachersCreated++
+    }
+  }
+
+  let complaintsCreated = 0
+  for (const demo of demoComplaints()) {
+    if (!inMemoryStore.findComplaintById(demo.complaintId)) {
+      inMemoryStore.createComplaint(demo)
+      complaintsCreated++
+    }
+  }
+
+  if (teachersCreated || complaintsCreated) {
+    console.log(
+      `✓ Offline demo data seeded (${teachersCreated} teachers, ${complaintsCreated} complaints)`
+    )
+  }
+}
 
 const seedDemoData = async () => {
-  if (require('mongoose').connection.readyState !== 1) return
+  if (require('mongoose').connection.readyState !== 1) {
+    seedInMemoryDemoData()
+    return
+  }
   // Seed demo student
   let student = await Student.findOne({ email: 'student@campusresolve.edu' })
   const defaultStudentHash = await bcrypt.hash('password123', 10)

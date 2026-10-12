@@ -4,6 +4,51 @@ CampusResolve is a production-ready, cloud-native web platform for students, fac
 
 ---
 
+## 0. Running Hosted (Live Preview)
+
+The whole stack runs from the repository root. Two processes:
+
+```bash
+npm install --legacy-peer-deps        # installs all workspaces
+npm run dev:backend                   # Express API + Socket.io on :5001
+npm run dev:frontend                  # Vite dev server on :5173 (this is the public link)
+```
+
+Open the **frontend** port to use the app — the Vite dev server proxies `/api`, `/uploads`
+and `/socket.io` to the backend, so the browser only ever talks to one origin.
+
+### Demo / offline mode
+
+`MONGO_URI` is optional. When it is missing or unreachable the API logs
+`Running in offline/demo mode` and serves everything from a **persistent in-memory store**
+(`backend/data/store.json`, git-ignored) that is seeded on first boot with:
+
+- 6 department teachers + a demo student and admin
+- 4 sample complaints across Submitted / Assigned / In Progress / Resolved
+- notifications and an activity-log feed derived from complaint timelines
+
+All login, complaint, assignment, status-update and analytics endpoints work in this mode,
+so the hosted preview is fully interactive without any external database or API keys.
+
+Supabase and the AI providers are also optional: missing credentials degrade gracefully
+(realtime mirroring / AI enrichment disabled) instead of crashing the API.
+
+### Environment
+
+| File | Purpose |
+|------|---------|
+| `frontend/.env` | `VITE_API_BASE_URL=/api` (relative → proxied), optional `VITE_BACKEND_URL` for the proxy target |
+| `backend/.env` | `PORT`, `SECRET_KEY` (JWT signing), optional `MONGO_URI`, SMTP and AI keys |
+
+### Deploying to Vercel
+
+`vercel.json` + `api/index.js` already wrap the Express app as a serverless function and
+build the SPA into `frontend/dist`. Set `MONGO_URI` and `SECRET_KEY` as project env vars,
+then deploy the repo root. Socket.io real-time features are disabled in that serverless
+configuration (set `VITE_VERCEL=true` for the frontend build).
+
+---
+
 ## 1. High-Level Architecture Diagram (Text)
 
 ```
@@ -195,11 +240,12 @@ yarn dev:backend
 ### Default local logins
 
 - Student login: `student@campusresolve.edu` / `password123`
-- Admin login: `admin@campusresolve.edu` / `pass123@A` (or `admin123`)
+- Admin login: `admin@campusresolve.edu` / `admin123` (or `pass123@A`)
 
-#### 🚨 IMPORTANT: Teacher Logins (Updated)
+#### Teacher logins
 
-The generic `TCH1001` ID does not exist in the database. You **must** log in with one of the department-specific IDs below.
+The generic `TCH1001` ID does not exist. Log in with one of the department-specific IDs below
+(all six work in demo mode; the credentials live in `backend/src/utils/demoCredentials.js`).
 
 | Department | Teacher ID    | Password     | Name               |
 |------------|---------------|--------------|--------------------|
