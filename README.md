@@ -51,10 +51,31 @@ Supabase and the AI providers are also optional: missing credentials degrade gra
 
 ### Deploying to Vercel
 
-`vercel.json` + `api/index.js` already wrap the Express app as a serverless function and
-build the SPA into `frontend/dist`. Set `MONGO_URI` and `SECRET_KEY` as project env vars,
-then deploy the repo root. Socket.io real-time features are disabled in that serverless
-configuration (set `VITE_VERCEL=true` for the frontend build).
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Asfak0077/CampusResolve)
+
+This is the only way to get a URL that anyone can open in a browser — sandbox
+preview URLs are token-gated by design.
+
+1. Click the button above (or import the repo at [vercel.com/new](https://vercel.com/new)).
+2. Set these **Environment Variables** on the project:
+   | Name | Value |
+   |------|-------|
+   | `SECRET_KEY` | any long random string (JWT signing) |
+   | `MONGO_URI` | your MongoDB Atlas connection string |
+   | `FRONTEND_URL` | `https://<your-deployment>.vercel.app` |
+3. Deploy. `vercel.json` builds the SPA into `frontend/dist` and serves the Express
+   API through `api/index.js`.
+
+> **Set `MONGO_URI`.** Serverless functions share no memory between invocations, so
+> without a database the demo store resets on every request. In Atlas, add
+> `0.0.0.0/0` under **Network Access** (Vercel's IPs are not static).
+>
+> Socket.io realtime is disabled on serverless (no persistent WebSocket). Build with
+> `VITE_VERCEL=true` for that target.
+
+`api/index.js` reuses the exact Express app from `backend/src/server.js`, so deployed
+routes match local development. Verify locally before deploying with:
+`node api/serve-local.js`
 
 ---
 

@@ -1,80 +1,59 @@
 /**
- * Vercel serverless wrapper for the Express backend
- * Maps Vercel serverless requests to the Express app
+ * Vercel serverless wrapper for the Express backend.
+ *
+ * This delegates to the SAME Express app the dev server uses
+ * (backend/src/server.js exports `app`), so routes, middleware and
+ * offline fallbacks can never drift between local and deployed environments.
+ * Requiring server.js does NOT start a listener — it only listens when run
+ * directly — so it is safe to reuse here.
  */
-const path = require('path');
 
-// Singleton Express app (reused across warm invocations)
-let expressApp = null;
+let app = null
+let bootstrap = null
 
-async function getExpressApp() {
-  if (expressApp) return expressApp;
+async function ensureReady() {
+  if (!bootstrap) {
+    bootstrap = (async () => {
+      const { connectDatabase } = require('../backend/src/config/db')
 
-  const express = require('express');
-  const cors = require('cors');
-  const mongoose = require('mongoose');
-  const helmet = require('helmet');
-  const mongoSanitize = require('express-mongo-sanitize');
+      // Connect before serving. Without MONGO_URI this reports false and the
+      // routes fall back to the in-memory store instead of throwing.
+      const connected = await connectDatabase()
 
-  // Connect to MongoDB
-  const MONGO_URI = process.env.MONGO_URI;
-  if (!MONGO_URI) {
-    throw new Error('MONGO_URI environment variable is not set');
+      // Seed demo data for whichever mode we ended up in.
+      try {
+        const { seedDemoData } = require('../backend/src/utils/seedDemoData')
+        await seedDemoData()
+      } catch (error) {
+        console.warn('Seeding skipped:', error.message)
+      }
+
+      if (!connected) {
+        console.warn(
+          '⚠️ Running without MongoDB. Set MONGO_URI in the Vercel project to persist data; ' +
+          'serverless invocations share no memory, so the demo store resets between requests.'
+        )
+      }
+
+      app = require('../backend/src/server')
+    })()
   }
-  if (mongoose.connection.readyState !== 1) {
-    await mongoose.connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 8000,
-      socketTimeoutMS: 45000,
-      bufferCommands: false
-    });
-  }
-
-  expressApp = express();
-
-  // Security middleware
-  expressApp.use(helmet({
-    crossOriginOpenerPolicy: { policy: 'unsafe-none' },
-    crossOriginEmbedderPolicy: false,
-    crossOriginResourcePolicy: { policy: 'cross-origin' }
-  }));
-  expressApp.use(cors());
-  expressApp.use(mongoSanitize());
-  expressApp.use(express.json({ limit: '5mb' }));
-  expressApp.use(express.urlencoded({ extended: true, limit: '5mb' }));
-
-  // Health check
-  expressApp.get('/api/health', (_req, res) => {
-    res.json({ ok: true, service: 'sdcfrs-backend', timestamp: new Date().toISOString() });
-  });
-
-  // Mount all routes
-  expressApp.use('/api/auth', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'authRoutesEnhanced.js')));
-  expressApp.use('/api/profile', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'profileRoutes.js')));
-  expressApp.use('/api/users', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'profileRoutes.js')));
-  expressApp.use('/api/complaints', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'complaintRoutesEnhanced.js')));
-  expressApp.use('/api/teachers', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'teacherRoutes.js')));
-  expressApp.use('/api/notifications', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'notificationRoutes.js')));
-  expressApp.use('/api/upload', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'uploadRoutes.js')));
-  expressApp.use('/api/analytics', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'teacherAnalyticsRoutes.js')));
-  expressApp.use('/api/feedback', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'feedbackRoutes.js')));
-  expressApp.use('/api/chatbot', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'chatbotRoutes.js')));
-  expressApp.use('/api/ai-intelligence', require(path.join(__dirname, '..', 'backend', 'src', 'routes', 'aiIntelligenceRoutes.js')));
-
-  // Error handler
-  expressApp.use((error, _req, res, _next) => {
-    console.error('Serverless error:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  });
-
-  return expressApp;
+  return bootstrap
 }
 
 module.exports = async (req, res) => {
   try {
-    const app = await getExpressApp();
-    return app(req, res);
+    await ensureReady()
+    return app(req, res)
   } catch (error) {
-    console.error('Failed to initialize Express app:', error);
-    res.status(500).json({ message: 'Server initialization failed', error: error.message });
+    console.error('Failed to initialize Express app:', error)
+    res.statusCode = 500
+    res.setHeader('Content-Type', 'application/json')
+    res.end(
+      JSON.stringify({
+        message: 'Server initialization failed',
+        error: error.message
+      })
+    )
   }
-};
+}
